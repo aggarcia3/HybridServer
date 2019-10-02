@@ -107,8 +107,7 @@ public final class HTTPRequest {
 	}
 
 	public String getHttpVersion() {
-		// TODO Auto-generated method stub
-		return null;
+		return httpVersion;
 	}
 
 	public Map<String, String> getHeaderParameters() {
@@ -168,10 +167,10 @@ public final class HTTPRequest {
 	 */
 	private boolean isValidResourceChain(String uri) {
 		// Start by checking that the URI is not an asterisk with an unsupported method
-		boolean toret = uri.equals("*") && (
+		boolean toret = !uri.equals("*") ||
 				method == HTTPRequestMethod.OPTIONS ||
 				method == HTTPRequestMethod.TRACE
-		);
+		;
 
 		// We only need to consider as valid URIs which contain
 		// an absolute path. Absolute URIs and authorities handling
