@@ -7,8 +7,7 @@
 		Primera Entrega
 	</description>
 
-	<!-- Poned el número de grupo correcto en esta propiedad -->
-	<property name="group" value="Grupo.X.Y"/>
+	<property name="group" value="Grupo.2.5"/>
 
 	<property name="report.file" value="test.report"/>
 	<property name="report.dir" location="report"/>
