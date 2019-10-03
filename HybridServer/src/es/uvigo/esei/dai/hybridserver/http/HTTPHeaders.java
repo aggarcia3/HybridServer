@@ -20,6 +20,7 @@ package es.uvigo.esei.dai.hybridserver.http;
 public enum HTTPHeaders {
 	CONTENT_LENGTH("Content-Length"),
 	CONTENT_TYPE("Content-Type"),
+	TRANSFER_ENCODING("Transfer-Encoding"),
 	HTTP_1_1("HTTP/1.1"), 
 	CONNECTION("Connection");
 	
