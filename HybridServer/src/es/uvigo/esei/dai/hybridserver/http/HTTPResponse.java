@@ -35,10 +35,16 @@ public final class HTTPResponse {
 	 * @param status The status to set.
 	 * @return This HTTP response object, to provide a fluent interface.
 	 * @throws IllegalArgumentException If {@code status} is null.
+	 * @throws IllegalStateException    If trying to change a response with a body
+	 *                                  to a 204 status code.
 	 */
 	public HTTPResponse setStatus(final HTTPResponseStatus status) {
 		if (status == null) {
 			throw new IllegalArgumentException("Can't associate a null status code to a HTTP response");
+		}
+
+		if (status == HTTPResponseStatus.S204 && content != null && !content.isEmpty()) {
+			throw new IllegalStateException("204 status responses can't have message body");
 		}
 
 		this.status = status;
@@ -87,8 +93,13 @@ public final class HTTPResponse {
 	 *
 	 * @param content The new message body for this response.
 	 * @return This HTTP response object, to provide a fluent interface.
+	 * @throws IllegalStateException If trying to attach a body to a 204 response.
 	 */
 	public HTTPResponse setContent(final String content) {
+		if (status == HTTPResponseStatus.S204 && content != null && !content.isEmpty()) {
+			throw new IllegalStateException("204 status responses can't have message body");
+		}
+
 		this.content = content;
 		return this;
 	}
