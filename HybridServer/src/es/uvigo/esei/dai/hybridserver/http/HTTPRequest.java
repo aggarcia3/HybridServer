@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  * Models a HTTP request.
  *
  * @author Alejandro González García
+ * @implNote This class is thread-safe.
  */
 public final class HTTPRequest {
 	/**
@@ -154,7 +155,7 @@ public final class HTTPRequest {
 				}
 
 				// No support for transfer encodings
-				if (headerPair[0].equalsIgnoreCase("Transfer-Encoding")) {
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.TRANSFER_ENCODING.getHeader())) {
 					// We associate a HTTPUnsupportedHeaderException as a cause so callers can
 					// decide to respond with a 501 status code (Not Implemented) rather than 400
 					// (Bad Request), as the standard mandates
@@ -165,7 +166,7 @@ public final class HTTPRequest {
 
 				// No support for byteranges content type (it affects request length
 				// computation)
-				if (headerPair[0].equalsIgnoreCase("Content-Type") && headerPair[1].startsWith("multipart/byteranges")) {
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_TYPE.getHeader()) && headerPair[1].startsWith("multipart/byteranges")) {
 					// Do not send additional cause information, as this content type must not be
 					// used by clients without knowing whether the server supports it, so it would
 					// be a bad request
@@ -173,7 +174,7 @@ public final class HTTPRequest {
 				}
 
 				// No support for content encodings
-				if (headerPair[0].equalsIgnoreCase("Content-Encoding") && !headerPair[1].equalsIgnoreCase("identity")) {
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader()) && !headerPair[1].equalsIgnoreCase("identity")) {
 					throw new HTTPParseException(
 							"This server does not support the specified content encoding for HTTP requests",
 							new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
@@ -181,7 +182,7 @@ public final class HTTPRequest {
 				}
 
 				// Get message body length from the corresponding header
-				if (headerPair[0].equalsIgnoreCase("Content-Length")) {
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_LENGTH.getHeader())) {
 					try {
 						// The parse method is lenient with the standard, because it allows an
 						// extra '+' symbol before the digits
