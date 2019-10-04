@@ -116,18 +116,18 @@ public class HybridServer {
 			// Tell the OS scheduler to start the thread.
 			// The OS will hopefully start the thread some day...
 			serverThread.start();
+		}
 
-			// Wait until the server thread is ready to accept connections,
-			// so users (and tests) of this method know for sure that we
-			// are at least ready to attend connections
-			synchronized (serverReadyLock) {
-				while (!serverReady) {
-					try {
-						serverReadyLock.wait();
-					} catch (final InterruptedException exc) {
-						// Give up
-						break;
-					}
+		// Wait until the server thread is ready to accept connections,
+		// so users (and tests) of this method know for sure that we
+		// are at least ready to attend connections
+		synchronized (serverReadyLock) {
+			while (!serverReady) {
+				try {
+					serverReadyLock.wait();
+				} catch (final InterruptedException exc) {
+					// Give up
+					break;
 				}
 			}
 		}
