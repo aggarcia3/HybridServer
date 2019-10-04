@@ -166,15 +166,20 @@ public final class HTTPRequest {
 
 				// No support for byteranges content type (it affects request length
 				// computation)
-				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_TYPE.getHeader()) && headerPair[1].startsWith("multipart/byteranges")) {
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_TYPE.getHeader())
+						&& headerPair[1].startsWith("multipart/byteranges")
+				) {
 					// Do not send additional cause information, as this content type must not be
 					// used by clients without knowing whether the server supports it, so it would
 					// be a bad request
 					throw new HTTPParseException("This server does not support the specified HTTP request content type");
 				}
 
-				// No support for content encodings
-				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader()) && !headerPair[1].equalsIgnoreCase("identity")) {
+				// No support for most content encodings
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader())
+						&& !headerPair[1].equalsIgnoreCase("identity")
+						&& !headerPair[1].equalsIgnoreCase("UTF-8")
+				) {
 					throw new HTTPParseException(
 							"This server does not support the specified content encoding for HTTP requests",
 							new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
