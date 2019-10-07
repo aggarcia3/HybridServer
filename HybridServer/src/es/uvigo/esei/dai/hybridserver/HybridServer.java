@@ -11,10 +11,9 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class HybridServer {
-	static final String NAME = "Hybrid Server";
-	static final Logger LOGGER = Logger.getLogger(NAME);
+import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
 
+public final class HybridServer {
 	private static final int SERVICE_PORT = 8888;
 	private static final int STOP_WAIT_MS = 10000;
 
@@ -25,24 +24,55 @@ public class HybridServer {
 	private final Object serverThreadLock = new Object();
 	private final Object serverReadyLock = new Object();
 
+	private final String name = "Hybrid Server";
+	private final Logger logger = Logger.getLogger(name);
+	private final ResourceReader resourceReader = new ResourceReader(this);
+	private final IOBackedMap<String, String> htmlResourceMap;
+
 	public HybridServer() {
 		// Uncomment to get more verbose logging output
+		// (this reduces performance a bit)
 		//Logger.getLogger("").setLevel(Level.ALL);
 		//Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
 
-		// TODO Auto-generated constructor stub
+		htmlResourceMap = new MemoryBackedHTMLResourceMap();
 	}
 
 	public HybridServer(Map<String, String> pages) {
-		// TODO Auto-generated constructor stub
+		try {
+			htmlResourceMap = new MemoryBackedHTMLResourceMap(pages);
+		} catch (final IOException exc) {
+			// This shouldn't happen
+			throw new AssertionError(exc);
+		}
 	}
 
 	public HybridServer(Properties properties) {
-		// TODO Auto-generated constructor stub
+		htmlResourceMap = new MemoryBackedHTMLResourceMap();
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public int getPort() {
 		return SERVICE_PORT;
+	}
+
+	public ResourceReader getResourceReader() {
+		return resourceReader;
+	}
+
+	/**
+	 * Gets the HTML resource map for this Hybrid Server.
+	 * @return The HTML resource map for this server.
+	 */
+	public IOBackedMap<String, String> getHtmlResourceMap() {
+		return htmlResourceMap;
+	}
+
+	public Logger getLogger() {
+		return logger;
 	}
 
 	/**
@@ -59,10 +89,10 @@ public class HybridServer {
 			serverThread = new Thread() {
 				@Override
 				public void run() {
-					LOGGER.log(Level.INFO, "Starting server", NAME);
+					logger.log(Level.INFO, "Starting server", name);
 
 					try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(SERVICE_PORT))) {
-						LOGGER.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
+						logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
 
 						// Tell other threads we're ready to accept connections
 						synchronized (serverReadyLock) {
@@ -74,11 +104,12 @@ public class HybridServer {
 						while (!interrupted()) {
 							try (final SocketChannel clientSocket = serverSocket.accept()) {
 								if (!interrupted()) {
-									LOGGER.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
+									logger.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
 
 									// Handle the request
 									final Socket oldIoClientSocket = clientSocket.socket();
 									new HTTPRequestHandlerController(
+											HybridServer.this,
 											oldIoClientSocket.getInputStream(),
 											oldIoClientSocket.getOutputStream()
 									).handleIncoming();
@@ -87,12 +118,12 @@ public class HybridServer {
 								// Report I/O exceptions, but do not report signals received by other
 								// threads to stop
 								if (!(exc instanceof ClosedByInterruptException)) {
-									LOGGER.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
+									logger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
 								}
 							}
 						}
 					} catch (final IOException exc) {
-						LOGGER.log(Level.SEVERE, "Couldn't bind to port {0}", SERVICE_PORT);
+						logger.log(Level.SEVERE, "Couldn't bind to port {0}", SERVICE_PORT);
 					} finally {
 						// Signal ourselves being stopped by clearing the attribute which holds a reference
 						// to this thread
@@ -151,7 +182,7 @@ public class HybridServer {
 
 			// Warn the user if the server is still alive
 			if (serverThread != null) {
-				LOGGER.log(Level.SEVERE, "Couldn't stop the server in a timely manner");
+				logger.log(Level.SEVERE, "Couldn't stop the server in a timely manner");
 			}
 		}
 	}
