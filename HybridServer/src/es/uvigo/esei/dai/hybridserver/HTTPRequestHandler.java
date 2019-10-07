@@ -14,9 +14,16 @@ abstract class HTTPRequestHandler {
 	/**
 	 * Initializes the HTTP request this handler is associated to, if any.
 	 *
-	 * @param request The request to attach to the handler. It may be null.
+	 * @param request The request to attach to the handler. It may be null. If it is
+	 *                not null, then the request must be attached to a server.
+	 * @throws IllegalArgumentException If the request is not null, and not
+	 *                                  associated to any server.
 	 */
 	protected HTTPRequestHandler(final HTTPRequest request) {
+		if (request != null && request.getServer() == null) {
+			throw new IllegalArgumentException("Can't create a handler for a request not associated to any server");
+		}
+
 		this.request = request;
 	}
 
