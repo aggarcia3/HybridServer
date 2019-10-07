@@ -10,6 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import es.uvigo.esei.dai.hybridserver.HybridServer;
+
 /**
  * Models a HTTP request.
  *
@@ -27,6 +29,7 @@ public final class HTTPRequest {
 
 	private static final String BAD_CONTENT_LENGTH_MESSAGE = "The received Content-Length header doesn't match the actual HTTP request body size";
 
+	private final HybridServer server;
 	private final HTTPRequestMethod method;
 	private final String resourceChain;
 	private final String httpVersion;
@@ -38,8 +41,9 @@ public final class HTTPRequest {
 	private final int contentLength;
 
 	/**
-	 * Creates a HTTP request object by parsing input from a reader.
+	 * Creates a HTTP request object associated to a server by parsing input from a reader.
 	 *
+	 * @param server The server where this HTTP request arrived.
 	 * @param reader The reader to get a HTTP request from.
 	 * @throws IOException        If an I/O error occurs during parsing.
 	 * @throws HTTPParseException If the HTTP request has a non-conforming syntax,
@@ -49,13 +53,16 @@ public final class HTTPRequest {
 	 *                            a bad request or the server just lacks support for
 	 *                            it.
 	 */
-	public HTTPRequest(Reader reader) throws IOException, HTTPParseException {
+	public HTTPRequest(final HybridServer server, final Reader reader) throws IOException, HTTPParseException {
 		BufferedReader inputReader;
 		String inputLine;
 
 		if (reader == null) {
 			throw new IllegalArgumentException("Can't associate a HTTP request with a null Reader");
 		}
+
+		// This field may be null
+		this.server = server;
 
 		inputReader = new BufferedReader(reader);
 
@@ -302,6 +309,32 @@ public final class HTTPRequest {
 
 		// Clamp content length
 		this.contentLength = (int) Math.min(Math.max(messageBodyLength, 0), Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Creates a HTTP request object by parsing input from a reader.
+	 *
+	 * @param reader The reader to get a HTTP request from.
+	 * @throws IOException        If an I/O error occurs during parsing.
+	 * @throws HTTPParseException If the HTTP request has a non-conforming syntax,
+	 *                            or some characteristic of it prevents it from
+	 *                            being processed by this server. Users should check
+	 *                            the cause of this exception to know whether it is
+	 *                            a bad request or the server just lacks support for
+	 *                            it.
+	 */
+	public HTTPRequest(final Reader reader) throws IOException, HTTPParseException {
+		this(null, reader);
+	}
+
+	/**
+	 * Gets the server where this HTTP request has just arrived.
+	 *
+	 * @return The described Hybrid Server. This value may be null if the server
+	 *         where this HTTP request arrived is unknown.
+	 */
+	public HybridServer getServer() {
+		return server;
 	}
 
 	/**
