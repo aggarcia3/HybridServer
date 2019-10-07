@@ -26,9 +26,12 @@ abstract class HTTPRequestHandlerFactory {
 
 		switch (httpRequest.getMethod()) {
 			case GET: {
-				// If the client sent a GET request to the root path, we should respond with the welcome page
 				if (httpRequest.getResourceName().equals("")) {
-					newHandler = new HTTPRequestWelcomePageHandlerFactory().instantiateHandler(httpRequest);
+					// If the client sent a GET request to the root path, we should respond with the welcome page
+					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
+				} else if (httpRequest.getResourceName().equals("html") && httpRequest.getResourceParameters().isEmpty()) {
+					// If the client sent a GET request to the html resource without a query, send it a list
+					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
 				}
 
 				break;
@@ -38,7 +41,7 @@ abstract class HTTPRequestHandlerFactory {
 
 		if (newHandler == null) {
 			// Send a 400 response
-			newHandler = new HTTPRequestBadRequestHandlerFactory().instantiateHandler(httpRequest);
+			newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
 		}
 
 		return newHandler;
