@@ -37,8 +37,8 @@ abstract class HTTPRequestHandlerFactory {
 		}
 
 		if (newHandler == null) {
-			// Send a 204 response
-			newHandler = new HTTPRequestNoContentHandlerFactory().instantiateHandler(httpRequest);
+			// Send a 400 response
+			newHandler = new HTTPRequestBadRequestHandlerFactory().instantiateHandler(httpRequest);
 		}
 
 		return newHandler;
