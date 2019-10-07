@@ -26,6 +26,6 @@ final class HTTPRequestBadRequestHandlerFactory extends HTTPRequestHandlerFactor
 
 	@Override
 	protected HTTPRequestHandler instantiateHandler(final HTTPRequest request) {
-		return new HTTPRequestBadRequestHandler();
+		return new HTTPRequestBadRequestHandler(request);
 	}
 }
