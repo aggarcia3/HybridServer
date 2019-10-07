@@ -152,7 +152,7 @@ public class ClientRequetsTest extends HybridServerTestCase {
 	public void testDeleteNonexistentPage() throws IOException {
 		final String pageURL = this.url + "html?uuid=" + invalidUUID;
 
-		assertThat(getStatus(pageURL), is(equalTo(404)));
+		assertThat(deleteStatus(pageURL), is(equalTo(404)));
 	}
 	
 	@Test
