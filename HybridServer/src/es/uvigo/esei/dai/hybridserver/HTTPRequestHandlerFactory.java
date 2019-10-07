@@ -29,9 +29,9 @@ abstract class HTTPRequestHandlerFactory {
 				if (httpRequest.getResourceName().equals("")) {
 					// If the client sent a GET request to the root path, we should respond with the welcome page
 					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
-				} else if (httpRequest.getResourceName().equals("html") && httpRequest.getResourceParameters().isEmpty()) {
-					// If the client sent a GET request to the html resource without a query, send it a list
-					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
+				} else if (httpRequest.getResourceName().equals("html")) {
+					// GET request to the html resource
+					newHandler = HTTPRequestHTMLResourceHandlerFactory.get().instantiateHandler(httpRequest);
 				}
 
 				break;
