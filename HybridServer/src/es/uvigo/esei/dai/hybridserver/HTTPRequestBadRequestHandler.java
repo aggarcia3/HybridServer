@@ -12,16 +12,21 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  */
 final class HTTPRequestBadRequestHandler extends HTTPRequestHandler {
 	// This handler just outputs a static HTML page, read from the server resources
-	private static final String HTML = ResourceReader.readTextResourceToString(HTTPRequestBadRequestHandler.class, "/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
+	private static final String HTML = ResourceReader.get().readTextResourceToString(HTTPRequestBadRequestHandler.class, "/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
 
 	@Override
 	public HTTPResponse handle() {
-		return new HTTPResponse()
-				.setStatus(HTTPResponseStatus.S400)
-				.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-				.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+		final HTTPResponse toret = new HTTPResponse()
+			.setStatus(HTTPResponseStatus.S400)
+			.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
+
+		if (HTML != null) {
+			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 				.setContent(String.format(HTML, HTTPResponseStatus.S400.getStatus() + ": this server doesn't serve that kind of resource"));
+		}
+
+		return toret;
 	}
 
 	@Override

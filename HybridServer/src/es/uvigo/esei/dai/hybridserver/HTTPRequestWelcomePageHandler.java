@@ -11,16 +11,23 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  */
 final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 	// This handler just outputs a static HTML page, read from the server resources
-	private static final String HTML = ResourceReader.readTextResourceToString(HTTPRequestWelcomePageHandler.class, "/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
+	private static final String HTML = ResourceReader.get().readTextResourceToString(HTTPRequestWelcomePageHandler.class, "/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
 
 	@Override
 	public HTTPResponse handle() {
-		return new HTTPResponse()
+		if (HTML != null) {
+			return new HTTPResponse()
 				.setStatus(HTTPResponseStatus.S200)
 				.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 				.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 				.setContent(HTML);
+		} else {
+			// No HTML to send because an internal error occured, so send a 500 status code
+			return new HTTPResponse()
+				.setStatus(HTTPResponseStatus.S500)
+				.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
+		}
 	}
 
 	@Override

@@ -28,7 +28,7 @@ import static es.uvigo.esei.dai.hybridserver.HybridServer.LOGGER;
  * @author Alejandro González García
  */
 final class HTTPRequestHandlerController {
-	private final static String STATUS_HTML = ResourceReader.readTextResourceToString(HTTPRequestHandlerController.class, "/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
+	private final static String STATUS_HTML = ResourceReader.get().readTextResourceToString(HTTPRequestHandlerController.class, "/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
 	private final static String IO_EXCEPTION_MSG = "An I/O error has occured while handling a request";
 
 	private final Reader input;
@@ -84,14 +84,14 @@ final class HTTPRequestHandlerController {
 				final HTTPResponse response = handler.handle();
 
 				LOGGER.log(Level.FINE,
-						"Generated response {0} for incoming {1} request to {2} in {3} ms, using {4}",
-						new Object[] {
-								response.getStatus(),
-								request.getMethod(),
-								request.getResourceChain(),
-								System.currentTimeMillis() - handlingStart,
-								handler
-						}
+					"Generated response {0} for incoming {1} request to {2} in {3} ms, using {4}",
+					new Object[] {
+						response.getStatus(),
+						request.getMethod(),
+						request.getResourceChain(),
+						System.currentTimeMillis() - handlingStart,
+						handler
+					}
 				);
 
 				response.print(output);
@@ -135,7 +135,7 @@ final class HTTPRequestHandlerController {
 				LOGGER.log(Level.WARNING, IO_EXCEPTION_MSG, exc);
 			} finally {
 				// Close the reader and writer.
-				// This way make sure the writer actually writes to the stream
+				// This way ensures the writer actually writes to the stream
 				try {
 					input.close();
 					output.close();
@@ -155,13 +155,19 @@ final class HTTPRequestHandlerController {
 	 * @throws IOException If some I/O error occurs during the operation.
 	 */
 	private void respondStatus(final HTTPResponseStatus status) throws IOException {
-		LOGGER.log(Level.FINE, "Responding to the client with " + status.getCode());
+		LOGGER.log(Level.FINE, "Responding to the client with {0}", status.getCode());
 
-		new HTTPResponse()
+		final HTTPResponse response = new HTTPResponse()
 			.setStatus(status)
-			.setVersion(version.getHeader())
-			.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-			.setContent(String.format(STATUS_HTML, status.getCode(), status.getStatus()))
-			.print(output);
+			.setVersion(version.getHeader());
+
+		if (STATUS_HTML != null) {
+			response.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+				.setContent(String.format(STATUS_HTML, status.getCode(), status.getStatus()));
+		} else {
+			LOGGER.log(Level.WARNING, "Couldn't get the HTML status page resource, so no message body was sent for the error");
+		}
+
+		response.print(output);
 	}
 }
