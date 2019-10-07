@@ -30,7 +30,7 @@ abstract class HTTPRequestHandlerFactory {
 					// If the client sent a GET request to the root path, we should respond with the welcome page
 					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
 				} else if (httpRequest.getResourceName().equals("html")) {
-					// GET request to the html resource
+					// GET request to the HTML resource
 					newHandler = HTTPRequestHTMLResourceHandlerFactory.get().instantiateHandler(httpRequest);
 				}
 
@@ -41,7 +41,7 @@ abstract class HTTPRequestHandlerFactory {
 
 		if (newHandler == null) {
 			// Send a 400 response
-			newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
+			newHandler = HTTPRequestBadRequestHandlerFactory.get().instantiateHandler(httpRequest);
 		}
 
 		return newHandler;
