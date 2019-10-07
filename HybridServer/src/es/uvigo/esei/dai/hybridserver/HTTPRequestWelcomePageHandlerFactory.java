@@ -26,6 +26,6 @@ final class HTTPRequestWelcomePageHandlerFactory extends HTTPRequestHandlerFacto
 
 	@Override
 	protected HTTPRequestHandler instantiateHandler(final HTTPRequest httpRequest) {
-		return new HTTPRequestWelcomePageHandler();
+		return new HTTPRequestWelcomePageHandler(httpRequest);
 	}
 }
