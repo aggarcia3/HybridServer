@@ -1,7 +1,6 @@
 package es.uvigo.esei.dai.hybridserver;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
-import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 
@@ -13,14 +12,6 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 	// This handler just outputs a static HTML page, read from the server resources
 	private static final String HTML = ResourceReader.readTextResourceToString(HTTPRequestWelcomePageHandler.class, "/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
-
-	/**
-	 * Constructs a new HTTP request welcome page handler.
-	 * @param request The request to associate this handler to.
-	 */
-	public HTTPRequestWelcomePageHandler(final HTTPRequest request) {
-		super(request);
-	}
 
 	@Override
 	public HTTPResponse handle() {

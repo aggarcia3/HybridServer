@@ -10,7 +10,6 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 final class HTTPRequestWelcomePageHandlerFactory extends HTTPRequestHandlerFactory {
 	@Override
 	protected HTTPRequestHandler instantiateHandler(final HTTPRequest httpRequest) {
-		super.instantiateHandler(httpRequest);
-		return new HTTPRequestWelcomePageHandler(httpRequest);
+		return new HTTPRequestWelcomePageHandler();
 	}
 }
