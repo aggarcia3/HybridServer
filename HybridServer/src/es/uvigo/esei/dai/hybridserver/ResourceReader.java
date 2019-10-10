@@ -49,7 +49,7 @@ final class ResourceReader {
 		logger.log(Level.FINE, "Trying to serve resource {0} from the cache", name);
 
 		return loadedTextResources.computeIfAbsent(name, (String resource) -> {
-			logger.log(Level.FINE, "Resource not in cache. Reeading resource {0} from storage", name);
+			logger.log(Level.FINE, "Resource not in cache. Reading resource {0} from storage", name);
 
 			// Read the resource from the input stream
 			long readStart = System.currentTimeMillis();
