@@ -14,8 +14,12 @@ import java.util.logging.Logger;
 import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
 
 public final class HybridServer {
-	private static final int SERVICE_PORT = 8888;
 	private static final int STOP_WAIT_MS = 10000;
+
+	private static final int DEFAULT_SERVICE_PORT = 8888;
+	private static final short DEFAULT_NUM_CLIENTS = 50;
+	private static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/hstestdb";
+	private static final String DEFAULT_DB_PASSWORD = "hsdbpass";
 
 	// Accesses to this variable should be guarded by serverThreadLock
 	private Thread serverThread = null;
@@ -29,57 +33,109 @@ public final class HybridServer {
 	private final ResourceReader resourceReader = new ResourceReader(this);
 	private final IOBackedMap<String, String> htmlResourceMap;
 
-	public HybridServer() {
-		// Uncomment to get more verbose logging output
-		// (this reduces performance a bit)
-		//Logger.getLogger("").setLevel(Level.ALL);
-		//Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
+	private final int servicePort;
+	private final short numClients;
+	private final String dbUrl;
+	private final String dbPassword;
 
-		htmlResourceMap = new MemoryBackedHTMLResourceMap();
+	/**
+	 * Creates a Hybrid Server without initial HTML resources, that stores new ones
+	 * in memory and will listen on the default service port and is initialized with
+	 * default configuration parameters. This constructor is mainly useful for
+	 * tests.
+	 */
+	public HybridServer() {
+		this.htmlResourceMap = new MemoryBackedHTMLResourceMap();
+		this.servicePort = DEFAULT_SERVICE_PORT;
+		this.numClients = DEFAULT_NUM_CLIENTS;
+		this.dbUrl = DEFAULT_DB_URL;
+		this.dbPassword = DEFAULT_DB_PASSWORD;
 	}
 
-	public HybridServer(Map<String, String> pages) {
+	/**
+	 * Creates a Hybrid Server whose initial HTML resources are those specified in
+	 * the in-memory map. Modifications of HTML resources will not pass-through to
+	 * this map. The server will listen on the default service port, and be
+	 * initialized with the default configuration parameters. This constructor is
+	 * mainly useful for tests.
+	 *
+	 * @param pages The initial HTML resources of the server. The keys of the map
+	 *              are UUIDs, and the values the content associated to that UUID.
+	 */
+	public HybridServer(final Map<String, String> pages) {
 		try {
-			htmlResourceMap = new MemoryBackedHTMLResourceMap(pages);
+			this.htmlResourceMap = new MemoryBackedHTMLResourceMap(pages);
 		} catch (final IOException exc) {
 			// This shouldn't happen
 			throw new AssertionError(exc);
 		}
+
+		this.servicePort = DEFAULT_SERVICE_PORT;
+		this.numClients = DEFAULT_NUM_CLIENTS;
+		this.dbUrl = DEFAULT_DB_URL;
+		this.dbPassword = DEFAULT_DB_PASSWORD;
 	}
 
-	public HybridServer(Properties properties) {
+	public HybridServer(final Properties properties) {
 		// TODO
-		htmlResourceMap = new MemoryBackedHTMLResourceMap();
+		this.htmlResourceMap = new MemoryBackedHTMLResourceMap();
+		this.servicePort = DEFAULT_SERVICE_PORT;
+		this.numClients = DEFAULT_NUM_CLIENTS;
+		this.dbUrl = DEFAULT_DB_URL;
+		this.dbPassword = DEFAULT_DB_PASSWORD;
 	}
 
+	/**
+	 * Returns the user-friendly name of this server.
+	 *
+	 * @return The user-friendly name of this server. Currently, "Hybrid Server".
+	 */
 	public String getName() {
 		return name;
 	}
 
+	/**
+	 * Gets the port this server will listen on, if it was not yet started, or is
+	 * listening on, if it was started sucessfully.
+	 *
+	 * @return The port this server will bind a socket on, for clients to connect to.
+	 */
 	public int getPort() {
-		return SERVICE_PORT;
+		return servicePort;
 	}
 
+	/**
+	 * Obtains the Java resource reader for use with this server.
+	 *
+	 * @return The described resource reader.
+	 */
 	public ResourceReader getResourceReader() {
 		return resourceReader;
 	}
 
 	/**
 	 * Gets the HTML resource map for this Hybrid Server.
+	 *
 	 * @return The HTML resource map for this server.
 	 */
 	public IOBackedMap<String, String> getHtmlResourceMap() {
 		return htmlResourceMap;
 	}
 
+	/**
+	 * Obtains the logger instance that is responsible for printing logging
+	 * information to the server operator.
+	 *
+	 * @return The logger instance for this Hybrid Server.
+	 */
 	public Logger getLogger() {
 		return logger;
 	}
 
 	/**
 	 * Starts the server service thread, which binds sockets and accepts connections
-	 * from clients. This method does not return until the server is ready to accept
-	 * connections.
+	 * from clients. This method does not return until the server is ready has bound
+	 * to the socket; that is, it is ready to accept connections.
 	 */
 	public void start() {
 		synchronized (serverThreadLock) {
@@ -92,7 +148,7 @@ public final class HybridServer {
 				public void run() {
 					logger.log(Level.INFO, "Starting server", name);
 
-					try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(SERVICE_PORT))) {
+					try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(servicePort))) {
 						logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
 
 						// Tell other threads we're ready to accept connections
@@ -124,7 +180,7 @@ public final class HybridServer {
 							}
 						}
 					} catch (final IOException exc) {
-						logger.log(Level.SEVERE, "Couldn't bind to port {0}", SERVICE_PORT);
+						logger.log(Level.SEVERE, "Couldn't bind to port {0}", servicePort);
 					} finally {
 						// Signal ourselves being stopped by clearing the attribute which holds a reference
 						// to this thread
@@ -165,6 +221,10 @@ public final class HybridServer {
 		}
 	}
 
+	/**
+	 * Stops the server orderly, so it won't accept new connections. This method
+	 * waits for the server service thread to stop.
+	 */
 	public void stop() {
 		synchronized (serverThreadLock) {
 			// Signal the server thread to stop
