@@ -13,7 +13,8 @@ import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
  * Models a memory backed HTML resource manager, which mantains a map of HTML
  * resources the server has available for clients, identified by their UUID, in
  * RAM. By design, this implementation of {@code IOBackedMap} never throws an
- * {@code IOException}.
+ * {@code IOException}. For the most part, this class behaves like a
+ * ConcurrentHashMap.
  *
  * @author Alejandro González García
  */
