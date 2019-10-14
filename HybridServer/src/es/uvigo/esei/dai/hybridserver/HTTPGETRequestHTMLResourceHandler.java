@@ -16,7 +16,7 @@ import es.uvigo.esei.dai.hybridserver.adt.IOBackedMap;
  *
  * @author Alejandro González García
  */
-final class HTTPRequestHTMLResourceHandler extends HTTPRequestHandler {
+final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 	private final String statusHtml;
 	private final String listHtml;
 
@@ -25,7 +25,7 @@ final class HTTPRequestHTMLResourceHandler extends HTTPRequestHandler {
 	 *
 	 * @param request The request to associate this handler to.
 	 */
-	public HTTPRequestHTMLResourceHandler(final HTTPRequest request) {
+	public HTTPGETRequestHTMLResourceHandler(final HTTPRequest request) {
 		super(request);
 		this.statusHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
 		this.listHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/html_res_list.htm");

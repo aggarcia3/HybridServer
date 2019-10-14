@@ -20,6 +20,7 @@ public final class HybridServer {
 	private static final int DEFAULT_SERVICE_PORT = 8888;
 	private static final short DEFAULT_NUM_CLIENTS = 50;
 	private static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/hstestdb";
+	private static final String DEFAULT_DB_USER = "db.user";
 	private static final String DEFAULT_DB_PASSWORD = "hsdbpass";
 
 	// Accesses to this variable should be guarded by serverThreadLock
@@ -37,6 +38,7 @@ public final class HybridServer {
 	private final int servicePort;
 	private final short numClients;
 	private final String dbUrl;
+	private final String dbUser;
 	private final String dbPassword;
 
 	/**
@@ -50,6 +52,7 @@ public final class HybridServer {
 		this.servicePort = DEFAULT_SERVICE_PORT;
 		this.numClients = DEFAULT_NUM_CLIENTS;
 		this.dbUrl = DEFAULT_DB_URL;
+		this.dbUser = DEFAULT_DB_USER;
 		this.dbPassword = DEFAULT_DB_PASSWORD;
 	}
 
@@ -74,16 +77,21 @@ public final class HybridServer {
 		this.servicePort = DEFAULT_SERVICE_PORT;
 		this.numClients = DEFAULT_NUM_CLIENTS;
 		this.dbUrl = DEFAULT_DB_URL;
+		this.dbUser = DEFAULT_DB_USER;
 		this.dbPassword = DEFAULT_DB_PASSWORD;
 	}
 
 	public HybridServer(final Properties properties) {
-		// TODO
+		if (properties == null) {
+			throw new IllegalArgumentException("Can't read configuration options for a server from a null properties object");
+		}
+
 		this.htmlResourceMap = new MemoryBackedHTMLResourceMap();
-		this.servicePort = DEFAULT_SERVICE_PORT;
-		this.numClients = DEFAULT_NUM_CLIENTS;
-		this.dbUrl = DEFAULT_DB_URL;
-		this.dbPassword = DEFAULT_DB_PASSWORD;
+		this.servicePort = Integer.parseUnsignedInt(properties.getProperty("port"));
+		this.numClients = Short.parseShort(properties.getProperty("numClients"));
+		this.dbUrl = properties.getProperty("db.url");
+		this.dbUser = properties.getProperty("db.user");
+		this.dbPassword = properties.getProperty("db.password");
 	}
 
 	/**

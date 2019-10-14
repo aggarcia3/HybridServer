@@ -31,7 +31,7 @@ abstract class HTTPRequestHandlerFactory {
 					newHandler = HTTPRequestWelcomePageHandlerFactory.get().instantiateHandler(httpRequest);
 				} else if (httpRequest.getResourceName().equals("html")) {
 					// GET request to the HTML resource
-					newHandler = HTTPRequestHTMLResourceHandlerFactory.get().instantiateHandler(httpRequest);
+					newHandler = HTTPGETRequestHTMLResourceHandlerFactory.get().instantiateHandler(httpRequest);
 				}
 
 				break;
