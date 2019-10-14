@@ -198,7 +198,10 @@ public final class HTTPRequest {
 					try {
 						// The parse method is lenient with the standard, because it allows an
 						// extra '+' symbol before the digits
-						messageBodyLength = Long.parseUnsignedLong(headerPair[1]);
+						messageBodyLength = Long.parseLong(headerPair[1]);
+						if (messageBodyLength < 0) {
+							throw new NumberFormatException();
+						}
 					} catch (final NumberFormatException exc) {
 						throw new HTTPParseException("Invalid Content-Length in HTTP request: expected 64-bit natural number", exc);
 					}
