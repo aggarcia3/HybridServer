@@ -11,7 +11,8 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
+import es.uvigo.esei.dai.hybridserver.adt.IOBackedMap;
+import es.uvigo.esei.dai.hybridserver.adt.MemoryBackedHTMLResourceMap;
 
 public final class HybridServer {
 	private static final int SERVICE_PORT = 8888;
