@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.util;
+package es.uvigo.esei.dai.hybridserver.adt;
 
 import java.io.IOException;
 import java.io.Serializable;

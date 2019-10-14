@@ -9,7 +9,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
+import es.uvigo.esei.dai.hybridserver.adt.IOBackedMap;
 
 /**
  * Handles (generates) the appropriate response for HTML resource HTTP requests.

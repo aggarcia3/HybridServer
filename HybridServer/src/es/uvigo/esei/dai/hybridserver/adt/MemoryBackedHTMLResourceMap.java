@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver;
+package es.uvigo.esei.dai.hybridserver.adt;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
-import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
 
 /**
  * Models a memory backed HTML resource manager, which mantains a map of HTML
@@ -18,7 +16,7 @@ import es.uvigo.esei.dai.hybridserver.util.IOBackedMap;
  *
  * @author Alejandro González García
  */
-final class MemoryBackedHTMLResourceMap implements IOBackedMap<String, String> {
+public final class MemoryBackedHTMLResourceMap implements IOBackedMap<String, String> {
 	private final Map<String, String> htmlResources = new ConcurrentHashMap<>();
 
 	/**
