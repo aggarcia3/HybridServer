@@ -240,6 +240,8 @@ public final class HybridServer {
 	 * to the socket; that is, it is ready to accept connections.
 	 */
 	public void start() {
+		System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
+
 		synchronized (serverThreadLock) {
 			if (serverThread != null) {
 				return;
@@ -248,7 +250,7 @@ public final class HybridServer {
 			serverThread = new Thread() {
 				@Override
 				public void run() {
-					logger.log(Level.INFO, "Starting server", name);
+					logger.log(Level.INFO, "Starting server thread", name);
 
 					try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(getPort()))) {
 						logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
