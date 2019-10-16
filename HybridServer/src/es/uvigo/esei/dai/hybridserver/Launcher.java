@@ -25,7 +25,7 @@ public class Launcher {
 		HybridServer server;
 
 		if (args.length == 1) {
-			try (final Reader configurationReader = new InputStreamReader(new FileInputStream(args[1]), StandardCharsets.UTF_8)) {
+			try (final Reader configurationReader = new InputStreamReader(new FileInputStream(args[0]), StandardCharsets.UTF_8)) {
 				// Load the configuration properties from the reader
 				configuration.load(configurationReader);
 
@@ -45,7 +45,7 @@ public class Launcher {
 
 				server.stop();
 			} catch (final FileNotFoundException exc) {
-				printErrorMessageAndExit("Unable to open the file " + args[1] + " for reading. Does it exist, and is it a file?");
+				printErrorMessageAndExit("Unable to open the file " + args[0] + " for reading. Does it exist, and is it a file?");
 			} catch (final IOException exc) {
 				printErrorMessageAndExit("An I/O error has occured while reading the configuration file");
 			}
