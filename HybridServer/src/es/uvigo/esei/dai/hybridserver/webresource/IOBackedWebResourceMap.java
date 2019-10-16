@@ -1,5 +1,6 @@
-package es.uvigo.esei.dai.hybridserver.adt;
+package es.uvigo.esei.dai.hybridserver.webresource;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -13,15 +14,23 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
- * A java.util.Map like interface that can be backed by an I/O device, and throw
- * I/O exceptions in data access methods. Currently, the implementation is that
- * of Java 11 Map interface, but modified to delete post Java 8 methods and add
- * throws clauses.
+ * A java.util.Map like interface that holds web resources, identified by their
+ * UUID, and can be backed by an I/O abstraction, throwing I/O exceptions in
+ * data access methods. Currently, the contract is that of Java 11 Map
+ * interface, but modified to delete post Java 8 methods and add throws clauses.
+ * Null keys or values are not allowed. No atomicity guarantees are made for the
+ * methods which have a default implementation in the interface, as
+ * implementations are allowed to leave them as they are.
+ * <p>
+ * On the other hand, users of implementations of this interface <b>should
+ * not</b> assume that web resource metadata is consistent between method calls:
+ * implementations should not store metadata in a persistent manner, as it is
+ * inherently runtime specific.
  *
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
  */
-public interface IOBackedMap<K, V> {
+public interface IOBackedWebResourceMap<K, V> extends Closeable {
     /**
      * Returns the number of key-value mappings in this map.  If the
      * map contains more than {@code Integer.MAX_VALUE} elements, returns
@@ -112,31 +121,32 @@ public interface IOBackedMap<K, V> {
 
     // Modification Operations
 
-    /**
-     * Associates the specified value with the specified key in this map
-     * (optional operation).  If the map previously contained a mapping for
-     * the key, the old value is replaced by the specified value.  (A map
-     * {@code m} is said to contain a mapping for a key {@code k} if and only
-     * if {@link #containsKey(Object) m.containsKey(k)} would return
-     * {@code true}.)
-     *
-     * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
-     * @return the previous value associated with {@code key}, or
-     *         {@code null} if there was no mapping for {@code key}.
-     *         (A {@code null} return can also indicate that the map
-     *         previously associated {@code null} with {@code key},
-     *         if the implementation supports {@code null} values.)
-     * @throws UnsupportedOperationException if the {@code put} operation
-     *         is not supported by this map
-     * @throws ClassCastException if the class of the specified key or value
-     *         prevents it from being stored in this map
-     * @throws NullPointerException if the specified key or value is null
-     *         and this map does not permit null keys or values
-     * @throws IllegalArgumentException if some property of the specified key
-     *         or value prevents it from being stored in this map
-     * @throws IOException If some I/O error occurred during the operation
-     */
+	/**
+	 * Associates the specified value with the specified key in this map (optional
+	 * operation). If the map previously contained a mapping for the key, the old
+	 * value is replaced by the specified value. (A map {@code m} is said to contain
+	 * a mapping for a key {@code k} if and only if {@link #containsKey(Object)
+	 * m.containsKey(k)} would return {@code true}.)
+	 *
+	 * @param key   key with which the specified value is to be associated
+	 * @param value value to be associated with the specified key
+	 * @return the previous value associated with {@code key}, or {@code null} if
+	 *         there was no mapping for {@code key}. (A {@code null} return can also
+	 *         indicate that the map previously associated {@code null} with
+	 *         {@code key}, if the implementation supports {@code null} values.)
+	 * @throws UnsupportedOperationException if the {@code put} operation is not
+	 *                                       supported by this map
+	 * @throws ClassCastException            if the class of the specified key or
+	 *                                       value prevents it from being stored in
+	 *                                       this map
+	 * @throws NullPointerException          if the specified key or value is null
+	 *                                       and this map does not permit null keys
+	 *                                       or values
+	 * @throws IllegalArgumentException      If the key is not a valid UUID, or the
+	 *                                       value is null
+	 * @throws IOException                   If some I/O error occurred during the
+	 *                                       operation
+	 */
     V put(K key, V value) throws IOException;
 
     /**
@@ -175,26 +185,29 @@ public interface IOBackedMap<K, V> {
 
     // Bulk Operations
 
-    /**
-     * Copies all of the mappings from the specified map to this map
-     * (optional operation).  The effect of this call is equivalent to that
-     * of calling {@link #put(Object,Object) put(k, v)} on this map once
-     * for each mapping from key {@code k} to value {@code v} in the
-     * specified map.  The behavior of this operation is undefined if the
-     * specified map is modified while the operation is in progress.
-     *
-     * @param m mappings to be stored in this map
-     * @throws UnsupportedOperationException if the {@code putAll} operation
-     *         is not supported by this map
-     * @throws ClassCastException if the class of a key or value in the
-     *         specified map prevents it from being stored in this map
-     * @throws NullPointerException if the specified map is null, or if
-     *         this map does not permit null keys or values, and the
-     *         specified map contains null keys or values
-     * @throws IllegalArgumentException if some property of a key or value in
-     *         the specified map prevents it from being stored in this map
-     * @throws IOException If some I/O error occurred during the operation
-     */
+	/**
+	 * Copies all of the mappings from the specified map to this map (optional
+	 * operation). The effect of this call is equivalent to that of calling
+	 * {@link #put(Object,Object) put(k, v)} on this map once for each mapping from
+	 * key {@code k} to value {@code v} in the specified map. The behavior of this
+	 * operation is undefined if the specified map is modified while the operation
+	 * is in progress.
+	 *
+	 * @param m mappings to be stored in this map
+	 * @throws UnsupportedOperationException if the {@code putAll} operation is not
+	 *                                       supported by this map
+	 * @throws ClassCastException            if the class of a key or value in the
+	 *                                       specified map prevents it from being
+	 *                                       stored in this map
+	 * @throws NullPointerException          if the specified map is null, or if
+	 *                                       this map does not permit null keys or
+	 *                                       values, and the specified map contains
+	 *                                       null keys or values
+	 * @throws IllegalArgumentException      If the key is not a valid UUID, or the
+	 *                                       value is null
+	 * @throws IOException                   If some I/O error occurred during the
+	 *                                       operation
+	 */
     void putAll(Map<? extends K, ? extends V> m) throws IOException;
 
     /**

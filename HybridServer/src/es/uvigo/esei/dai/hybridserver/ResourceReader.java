@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  * @author Alejandro González García
  * @implNote The implementation of this class is thread-safe.
  */
-final class ResourceReader {
+public final class ResourceReader {
 	private static final int WRITER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 

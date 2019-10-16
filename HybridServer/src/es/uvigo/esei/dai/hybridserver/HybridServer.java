@@ -7,6 +7,7 @@ import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -14,9 +15,12 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import es.uvigo.esei.dai.hybridserver.adt.IOBackedMap;
-import es.uvigo.esei.dai.hybridserver.adt.JDBCBackedHTMLResourceMap;
-import es.uvigo.esei.dai.hybridserver.adt.MemoryBackedHTMLResourceMap;
+import es.uvigo.esei.dai.hybridserver.webresource.IOBackedWebResourceMap;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDataOriginFactory;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceJDBCDataOriginSettings;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceMemoryDataOriginSettings;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceType;
 
 public final class HybridServer {
 	private static final Properties DEFAULT_CONFIGURATION;
@@ -25,16 +29,15 @@ public final class HybridServer {
 	private final String name = "Hybrid Server";
 	private final Logger logger = Logger.getLogger(name);
 	private final ResourceReader resourceReader = new ResourceReader(this);
-	private final IOBackedMap<String, String> htmlResourceMap;
+	private final Map<WebResourceType, IOBackedWebResourceMap<String, WebResource>> webResourceMaps = new EnumMap<>(WebResourceType.class);
 
 	private final Properties configuration;
 
-	// Accesses to this variable should be guarded by serverThreadLock
+	// Accesses to this attribute should be guarded by serverThreadLock
 	private Thread serverThread = null;
-	// Accesses to this variable should be guarded by serverReadyLock
-	private boolean serverReady = false;
+	// Accesses to this attribute should be guarded by serverThreadLock
+	private boolean serverThreadReady = false;
 	private final Object serverThreadLock = new Object();
-	private final Object serverReadyLock = new Object();
 
 	static {
 		DEFAULT_CONFIGURATION = new Properties();
@@ -94,35 +97,46 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Creates a Hybrid Server without initial HTML resources, that stores new ones
-	 * in memory and will listen on the default service port and is initialized with
-	 * default configuration parameters. This constructor is mainly useful for
-	 * tests.
+	 * Creates a Hybrid Server whose web resources are provided by a database, using
+	 * the default configuration parameters.
 	 */
 	public HybridServer() {
-		this.htmlResourceMap = new MemoryBackedHTMLResourceMap();
 		this.configuration = new Properties(DEFAULT_CONFIGURATION);
+
+		initializeJDBCWebResourceMaps(
+			configuration.getProperty("db.url"),
+			configuration.getProperty("db.user"),
+			configuration.getProperty("db.password"),
+			logger
+		);
 	}
 
 	/**
-	 * Creates a Hybrid Server whose initial HTML resources are those specified in
-	 * the in-memory map. Modifications of HTML resources will not pass-through to
+	 * Creates a Hybrid Server whose initial web resources are those specified in
+	 * the in-memory map. Modifications of web resources will not pass-through to
 	 * this map. The server will listen on the default service port, and be
 	 * initialized with the default configuration parameters. This constructor is
 	 * mainly useful for tests.
 	 *
-	 * @param pages The initial HTML resources of the server. The keys of the map
-	 *              are UUIDs, and the values the content associated to that UUID.
+	 * @param htmlPages The initial HTML web resources of the server. The keys of
+	 *                  the map are UUIDs, and the values the content associated to
+	 *                  that UUID.
 	 */
-	public HybridServer(final Map<String, String> pages) {
+	public HybridServer(final Map<String, String> htmlPages) {
+		this.configuration = new Properties(DEFAULT_CONFIGURATION);
+
+		initializeMemoryWebResourceMaps();
 		try {
-			this.htmlResourceMap = new MemoryBackedHTMLResourceMap(pages);
+			for (Map.Entry<String, String> htmlPage : htmlPages.entrySet()) {
+				webResourceMaps.get(WebResourceType.HTML).put(
+					htmlPage.getKey(),
+					new WebResource(htmlPage.getValue())
+				);
+			}
 		} catch (final IOException exc) {
 			// This shouldn't happen
 			throw new AssertionError(exc);
 		}
-
-		this.configuration = new Properties(DEFAULT_CONFIGURATION);
 	}
 
 	/**
@@ -160,10 +174,12 @@ public final class HybridServer {
 		}
 
 		this.configuration = properties;
-		this.htmlResourceMap = new JDBCBackedHTMLResourceMap(
+
+		initializeJDBCWebResourceMaps(
 			properties.getProperty("db.url"),
 			properties.getProperty("db.user"),
-			properties.getProperty("db.password")
+			properties.getProperty("db.password"),
+			logger
 		);
 	}
 
@@ -216,12 +232,21 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Gets the HTML resource map for this Hybrid Server.
+	 * Gets the the web resource map for a kind of web resources of this Hybrid
+	 * Server.
 	 *
-	 * @return The HTML resource map for this server.
+	 * @return The web resource map of the specified type of web resource for this
+	 *         server.
 	 */
-	public IOBackedMap<String, String> getHtmlResourceMap() {
-		return htmlResourceMap;
+	public IOBackedWebResourceMap<String, WebResource> getWebResourceMap(final WebResourceType webResourceType) {
+		final IOBackedWebResourceMap<String, WebResource> toret = webResourceMaps.get(webResourceType);
+
+		// Sanity check
+		if (toret == null) {
+			throw new AssertionError();
+		}
+
+		return toret;
 	}
 
 	/**
@@ -237,87 +262,30 @@ public final class HybridServer {
 	/**
 	 * Starts the server service thread, which binds sockets and accepts connections
 	 * from clients. This method does not return until the server is ready has bound
-	 * to the socket; that is, it is ready to accept connections.
+	 * to the socket; that is, it is ready to accept connections. If the server
+	 * couldn't be started because of an error, then this method returns when a best
+	 * effort to start it has been made. If the server is already started, this
+	 * method has no effect.
 	 */
 	public void start() {
-		System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
-
+		// Create a thread if we aren't already started, and wait for it to be ready
 		synchronized (serverThreadLock) {
-			if (serverThread != null) {
-				return;
-			}
+			if (serverThread == null) {
+				System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
 
-			serverThread = new Thread() {
-				@Override
-				public void run() {
-					logger.log(Level.INFO, "Starting server thread", name);
+				serverThread = new ServerThread();
+				serverThread.start();
 
-					try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(getPort()))) {
-						logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
-
-						// Tell other threads we're ready to accept connections
-						synchronized (serverReadyLock) {
-							serverReady = true;
-							serverReadyLock.notifyAll();
-						}
-
-						// Keep accepting incoming connections until other thread signals us to stop
-						while (!interrupted()) {
-							try (final SocketChannel clientSocket = serverSocket.accept()) {
-								logger.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
-
-								// Handle the request
-								final Socket oldIoClientSocket = clientSocket.socket();
-								new HTTPRequestHandlerController(
-										HybridServer.this,
-										oldIoClientSocket.getInputStream(),
-										oldIoClientSocket.getOutputStream()
-								).handleIncoming();
-							} catch (final IOException exc) {
-								// Report I/O exceptions, but do not report signals received by other
-								// threads to stop
-								if (!(exc instanceof ClosedByInterruptException)) {
-									logger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
-								}
-							}
-						}
-					} catch (final IOException exc) {
-						logger.log(Level.SEVERE, "Couldn't bind to port {0}", getPort());
-					} finally {
-						// Signal ourselves being stopped by clearing the attribute which holds a reference
-						// to this thread
-						synchronized (serverThreadLock) {
-							serverThread = null;
-							serverThreadLock.notifyAll();
-						}
-
-						// We are not actually be ready to accept connections, but consider
-						// ourselves ready no matter what as we don't want clients to wait anymore
-						synchronized (serverReadyLock) {
-							if (!serverReady) {
-								serverReady = true;
-								serverReadyLock.notifyAll();
-							}
-						}
+				// Wait until the server thread is ready to accept connections or stopped,
+				// so users (and tests) of this method know for sure that we did our best
+				// to start the server before returning the control to them
+				while (serverThread != null && !serverThreadReady) {
+					try {
+						serverThreadLock.wait();
+					} catch (final InterruptedException exc) {
+						// Give up waiting
+						break;
 					}
-				}
-			};
-
-			// Tell the OS scheduler to start the thread.
-			// The OS will start the thread some day...
-			serverThread.start();
-		}
-
-		// Wait until the server thread is ready to accept connections,
-		// so users (and tests) of this method know for sure that we
-		// are at least ready to process incoming requests
-		synchronized (serverReadyLock) {
-			while (!serverReady) {
-				try {
-					serverReadyLock.wait();
-				} catch (final InterruptedException exc) {
-					// Give up
-					break;
 				}
 			}
 		}
@@ -330,24 +298,101 @@ public final class HybridServer {
 	 */
 	public void stop() {
 		synchronized (serverThreadLock) {
-			// Signal the server thread to stop
-			serverThread.interrupt();
+			if (serverThread != null) {
+				// Signal the server thread to stop
+				serverThread.interrupt();
 
-			// Wait for the server to stop
-			final long waitStart = System.currentTimeMillis();
-			final int stopWaitTime = getStopWaitTime();
-			final long waitEnd = waitStart + stopWaitTime;
-			while (serverThread != null && System.currentTimeMillis() - waitStart < stopWaitTime) {
-				try {
-					serverThreadLock.wait(waitEnd - System.currentTimeMillis());
-				} catch (final InterruptedException | IllegalArgumentException exc) {
-					// Ignore, we did our best to stop the server
+				// Wait for it to actually stop
+				final long waitStart = System.currentTimeMillis();
+				final int stopWaitTime = getStopWaitTime();
+				final long waitEnd = waitStart + stopWaitTime;
+				while (serverThread != null && System.currentTimeMillis() - waitStart < stopWaitTime) {
+					try {
+						serverThreadLock.wait(waitEnd - System.currentTimeMillis());
+					} catch (final InterruptedException | IllegalArgumentException exc) {
+						// Ignore, we did our best to stop the server
+					}
+				}
+
+				// Warn the operator if we didn't succeed in stopping the server
+				if (serverThread != null) {
+					logger.log(Level.SEVERE, "Couldn't stop the server in a timely manner");
+				} else {
+					// Release resources held by I/O backed maps
+					try {
+						for (final IOBackedWebResourceMap<?, ?> resourceMap : webResourceMaps.values()) {
+							resourceMap.close();
+						}
+					} catch (final IOException exc) {
+						logger.log(Level.WARNING, "Couldn't relinquish the resources associated to a I/O backed map", exc);
+					}
 				}
 			}
+		}
+	}
 
-			// Warn the user if the server is still alive
-			if (serverThread != null) {
-				logger.log(Level.WARNING, "Couldn't stop the server in a timely manner");
+	/**
+	 * Checks whether the server has been started successfully and is accepting
+	 * incoming connections.
+	 *
+	 * @return True if and only if the server has been started successfully, false
+	 *         in other case.
+	 */
+	public boolean started() {
+		synchronized (serverThreadLock) {
+			return serverThread != null && serverThreadReady;
+		}
+	}
+
+	/**
+	 * Contains the logic for accepting stream socket connections in a separate
+	 * thread.
+	 *
+	 * @author Alejandro González García
+	 */
+	private class ServerThread extends Thread {
+		@Override
+		public void run() {
+			logger.log(Level.INFO, "Starting server thread");
+
+			try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(getPort()))) {
+				logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
+
+				// Tell other threads we're ready to accept connections
+				synchronized (serverThreadLock) {
+					serverThreadReady = true;
+					serverThreadLock.notifyAll();
+				}
+
+				// Keep accepting incoming connections until other thread signals us to stop
+				while (!interrupted()) {
+					try (final SocketChannel clientSocket = serverSocket.accept()) {
+						logger.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
+
+						// Handle the request
+						final Socket oldIoClientSocket = clientSocket.socket();
+						new HTTPRequestHandlerController(
+								HybridServer.this,
+								oldIoClientSocket.getInputStream(),
+								oldIoClientSocket.getOutputStream()
+						).handleIncoming();
+					} catch (final IOException exc) {
+						// Report I/O exceptions, but do not report signals received by other
+						// threads to stop
+						if (!(exc instanceof ClosedByInterruptException)) {
+							logger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
+						}
+					}
+				}
+			} catch (final IOException exc) {
+				logger.log(Level.SEVERE, "Couldn't bind to port {0}", getPort());
+			} finally {
+				// Signal ourselves being stopped
+				synchronized (serverThreadLock) {
+					serverThread = null;
+					serverThreadReady = false;
+					serverThreadLock.notifyAll();
+				}
 			}
 		}
 	}
@@ -360,7 +405,7 @@ public final class HybridServer {
 	 * @param key The key to get its associated integer of.
 	 * @return The integer associated to the configuration key.
 	 */
-	protected int getConfigurationInteger(final String key) {
+	private int getConfigurationInteger(final String key) {
 		String value = configuration.getProperty(key);
 
 		if (value == null) {
@@ -371,5 +416,39 @@ public final class HybridServer {
 		}
 
 		return Integer.parseInt(value);
+	}
+
+	/**
+	 * Initializes the {@code webResourceMaps} attribute with a web resource map for
+	 * each web resource type, using DRAM-backed web resource maps.
+	 */
+	private void initializeMemoryWebResourceMaps() {
+		// Get the appropriate settings for a memory data origin for web resources
+		final WebResourceMemoryDataOriginSettings originSettings = new WebResourceMemoryDataOriginSettings();
+
+		// For each resource type (HTML, ...), obtain its resource map that associates UUIDs with their contents
+		for (final WebResourceType resourceType : WebResourceType.values()) {
+			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));
+		}
+	}
+
+	/**
+	 * Initializes the {@code webResourceMaps} attribute with a web resource map for
+	 * each web resource type, using relational DBMS-backed web resource maps.
+	 */
+	private void initializeJDBCWebResourceMaps(final String dbUrl, final String dbUser, final String dbPassword, final Logger logger) {
+		for (final WebResourceType resourceType : WebResourceType.values()) {
+			// Configure the JDBC data origin with the relevant settings
+			final WebResourceJDBCDataOriginSettings originSettings = new WebResourceJDBCDataOriginSettings(
+				dbUrl,
+				dbUser,
+				dbPassword,
+				resourceType,
+				logger
+			);
+
+			// Get the associated resource map for the DB and put it in the map for resource maps
+			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));
+		}
 	}
 }

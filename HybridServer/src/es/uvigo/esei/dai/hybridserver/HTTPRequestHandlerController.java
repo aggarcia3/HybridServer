@@ -19,12 +19,16 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedContentEncodingException;
 import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedHeaderException;
+import es.uvigo.esei.dai.hybridserver.http.request.handlers.HTTPRequestHandler;
+import es.uvigo.esei.dai.hybridserver.http.request.handlers.HTTPRequestHandlerFactory;
 
 /**
  * Orchestrates operations to implement the HTTP request handling business
  * logic.
  *
  * @author Alejandro González García
+ * @impl The implementation of this class is not thread-safe, so instances
+ *       shouldn't be shared across threads.
  */
 final class HTTPRequestHandlerController {
 	private final static String IO_EXCEPTION_MSG = "An I/O error has occured while handling a request";
@@ -169,7 +173,10 @@ final class HTTPRequestHandlerController {
 
 		if (statusHtml != null) {
 			response.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-				.setContent(String.format(statusHtml, status.getCode(), status.getStatus()));
+				.setContent(statusHtml
+					.replace("-- STATUS CODE --", Integer.toString(status.getCode()))
+					.replace("-- STATUS MESSAGE --", status.getStatus())
+				);
 		} else {
 			server.getLogger().log(Level.WARNING, "Couldn't get the HTML status page resource, so no message body was sent for the error");
 		}

@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver;
+package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import java.io.IOException;
 import java.util.Map;
@@ -9,7 +9,10 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-import es.uvigo.esei.dai.hybridserver.adt.IOBackedMap;
+import es.uvigo.esei.dai.hybridserver.webresource.IOBackedWebResourceMap;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceType;
+import es.uvigo.esei.dai.hybridserver.HybridServer;
 
 /**
  * Handles (generates) the appropriate response for HTML resource HTTP requests.
@@ -37,21 +40,21 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 
 		try {
 			final Map<String, String> queryParameters = request.getResourceParameters();
-			final IOBackedMap<String, String> htmlResources = request.getServer().getHtmlResourceMap();
+			final IOBackedWebResourceMap<String, WebResource> htmlResources = request.getServer().getWebResourceMap(WebResourceType.HTML);
 
 			if (!queryParameters.containsKey("uuid")) {
 				// No UUID given, so show the list of HTML resources
 				toret = htmlResourcesListResponse();
 			} else {
 				final String requestedUuid = queryParameters.get("uuid");
-				final String requestedHtmlResource = htmlResources.get(requestedUuid);
+				final WebResource requestedHtmlResource = htmlResources.get(requestedUuid);
 
 				if (requestedHtmlResource != null) {
 					toret = new HTTPResponse()
 						.setStatus(HTTPResponseStatus.S200)
 						.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 						.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-						.setContent(requestedHtmlResource);
+						.setContent(requestedHtmlResource.getContent());
 				} else {
 					// The client wants to get an inexistent HTML resource
 					toret = statusCodeResponse(HTTPResponseStatus.S404);
@@ -60,7 +63,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 		} catch (final Exception exc) {
 			final HybridServer server = request.getServer();
 			if (server != null) {
-				server.getLogger().log(Level.WARNING, "An exception has been thrown has occured while handling a HTML resource request", exc);
+				server.getLogger().log(Level.WARNING, "An exception has occured while handling a HTML resource GET request", exc);
 			}
 
 			toret = statusCodeResponse(HTTPResponseStatus.S500);
@@ -87,7 +90,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 			.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 			.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 			.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en");
-		final Set<String> htmlResources = request.getServer().getHtmlResourceMap().keySet();
+		final Set<String> htmlResources = request.getServer().getWebResourceMap(WebResourceType.HTML).keySet();
 		final StringBuilder resourceListBuilder = new StringBuilder();
 
 		// Generate the HTML code of the list, to substitute on the template
@@ -105,7 +108,9 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 			resourceListBuilder.append("</ul>");
 		}
 
-		return toret.setContent(String.format(listHtml, resourceListBuilder.toString()));
+		return toret.setContent(listHtml
+			.replace("-- RESOURCE LIST PLACEHOLDER --", resourceListBuilder.toString())
+		);
 	}
 
 	/**
@@ -122,9 +127,17 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 		if (statusHtml != null) {
 			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
-				.setContent(String.format(statusHtml, status.getCode(), status.getStatus()));
+				.setContent(statusHtml
+					.replace("-- STATUS CODE --", Integer.toString(status.getCode()))
+					.replace("-- STATUS MESSAGE --", status.getStatus())
+				);
 		}
 
 		return toret;
+	}
+
+	@Override
+	public String toString() {
+		return "HTML GET request handler";
 	}
 }

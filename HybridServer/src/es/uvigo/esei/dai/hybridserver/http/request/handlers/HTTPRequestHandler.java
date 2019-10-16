@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver;
+package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
@@ -8,7 +8,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
  *
  * @author Alejandro González García
  */
-abstract class HTTPRequestHandler {
+public abstract class HTTPRequestHandler {
 	protected final HTTPRequest request;
 
 	/**
