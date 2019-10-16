@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver;
+package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
@@ -33,7 +33,10 @@ final class HTTPRequestBadRequestHandler extends HTTPRequestHandler {
 		if (html != null) {
 			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
-				.setContent(String.format(html, HTTPResponseStatus.S400.getCode(), HTTPResponseStatus.S400.getStatus() + ": this server doesn't serve that kind of resource"));
+				.setContent(html
+					.replace("-- STATUS CODE --", Integer.toString(HTTPResponseStatus.S400.getCode()))
+					.replace("-- STATUS MESSAGE --", HTTPResponseStatus.S400.getStatus() + ": this server doesn't serve that kind of resource")
+				);
 		}
 
 		return toret;

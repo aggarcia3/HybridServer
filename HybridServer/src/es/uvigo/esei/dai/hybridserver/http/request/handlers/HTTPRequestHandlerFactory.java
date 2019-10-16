@@ -1,13 +1,13 @@
-package es.uvigo.esei.dai.hybridserver;
+package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 
 /**
- * Creates the appropiate HTTP request handlers for HTTP requests.
+ * Creates the appropriate HTTP request handlers for HTTP requests.
  *
  * @author Alejandro González García
  */
-abstract class HTTPRequestHandlerFactory {
+public abstract class HTTPRequestHandlerFactory {
 	private static final String NULL_REQUEST_INSTANTIATION_ERROR = "Can't instantiate a HTTP request handler associated with a null HTTP request";
 
 	/**
