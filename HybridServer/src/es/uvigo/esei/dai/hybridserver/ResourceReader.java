@@ -22,7 +22,7 @@ public final class ResourceReader {
 	private static final int WRITER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 
-	private final Map<String,String> loadedTextResources = new ConcurrentHashMap<>(2); // 2 is the number of resources
+	private final Map<String,String> loadedTextResources = new ConcurrentHashMap<>(3); // 3 is the number of resources
 	private final HybridServer server;
 
 	/**
