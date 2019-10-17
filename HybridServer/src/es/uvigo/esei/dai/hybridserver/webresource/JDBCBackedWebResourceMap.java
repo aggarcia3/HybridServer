@@ -541,7 +541,7 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 		Connection currentThreadDbConnection = dbConnections.get(currentThreadId.get());
 
 		if (currentThreadDbConnection == null || !currentThreadDbConnection.isValid(LOGIN_TIMEOUT)) {
-			logger.log(Level.INFO, "Using a JDBC backed resource map without a established DBMS connection. Trying to establish a connection...");
+			logger.log(Level.FINE, "The thread with ID {0} is usinga JDBC backed resource map without a established DBMS connection. Trying to establish a connection...", currentThreadId.get());
 
 			// Actively try to close invalid (but once established) connections,
 			// to maybe allow the JDBC driver to clean up its internal state
@@ -561,7 +561,7 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 			// it later
 			dbConnections.put(currentThreadId.get(), currentThreadDbConnection);
 
-			logger.log(Level.INFO, "Connection established to {0} successfully", dbUrl);
+			logger.log(Level.FINE, "Connection to {0} established successfully", dbUrl);
 		}
 
 		return currentThreadDbConnection;
