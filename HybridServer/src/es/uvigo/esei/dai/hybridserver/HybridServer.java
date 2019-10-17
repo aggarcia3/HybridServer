@@ -45,7 +45,7 @@ public final class HybridServer {
 
 		// Predicate that every accepted natural integer configuration parameter
 		// must validate
-		final Predicate<String> naturalIntegerPredicate = new Predicate<>() {
+		final Predicate<String> naturalIntegerPredicate = new Predicate<String>() {
 			@Override
 			public boolean test(final String value) {
 				try {
@@ -64,7 +64,7 @@ public final class HybridServer {
 		};
 
 		// Predicate that every non-null parameter must validate
-		final Predicate<String> nonNullStringPredicate = new Predicate<>() {
+		final Predicate<String> nonNullStringPredicate = new Predicate<String>() {
 			@Override
 			public boolean test(final String value) {
 				return value != null;
