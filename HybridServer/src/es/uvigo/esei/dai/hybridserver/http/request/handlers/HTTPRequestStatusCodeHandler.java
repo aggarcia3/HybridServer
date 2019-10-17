@@ -1,49 +1,63 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
-import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 
 /**
- * Handles (generates) the appropiate response for bad HTTP requests
- * for invalid resources.
+ * Always generates a static status code response, no matter what request is it
+ * associated to. This handler is more useful when it is the last handler in a
+ * responsibility chain, as it will handle any request passed to it, as a last
+ * resort handler.
  *
  * @author Alejandro González García
  */
-final class HTTPRequestBadRequestHandler extends HTTPRequestHandler {
-	private final String html;
+final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
+	private final HTTPResponseStatus status;
 
 	/**
-	 * Constructs a new HTTP bad request handler.
+	 * Constructs a new static HTTP status code handler that will generate a 400
+	 * Bad Request HTTP response.
 	 *
-	 * @param request The request to associate this handler to.
+	 * @param request     The request to associate this handler to.
+	 * @param nextHandler The next handler in the responsibility chain. May be null
+	 *                    if there are no more handlers. For this particular
+	 *                    handler, any next handler will be effectively ignored, as
+	 *                    this handler handles every request.
 	 */
-	public HTTPRequestBadRequestHandler(final HTTPRequest request) {
-		super(request);
-		this.html = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
+	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler) {
+		this(request, nextHandler, HTTPResponseStatus.S400);
 	}
 
-	@Override
-	public HTTPResponse handle() {
-		final HTTPResponse toret = new HTTPResponse()
-			.setStatus(HTTPResponseStatus.S400)
-			.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
+	/**
+	 * Constructs a new static HTTP status code handler.
+	 *
+	 * @param request                  The request to associate this handler to.
+	 * @param nextHandler              The next handler in the responsibility chain.
+	 *                                 May be null if there are no more handlers.
+	 *                                 For this particular handler, any next handler
+	 *                                 will be effectively ignored, as this handler
+	 *                                 handles every request.
+	 * @param status                   The status code of the response to generate.
+	 * @param IllegalArgumentException If {@code status} is null.
+	 */
+	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler, final HTTPResponseStatus status) {
+		super(request, nextHandler);
 
-		if (html != null) {
-			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
-				.setContent(html
-					.replace("-- STATUS CODE --", Integer.toString(HTTPResponseStatus.S400.getCode()))
-					.replace("-- STATUS MESSAGE --", HTTPResponseStatus.S400.getStatus() + ": this server doesn't serve that kind of resource")
-				);
+		if (status == null) {
+			throw new IllegalArgumentException("Can't create a static HTTP status code handler without a status code");
 		}
 
-		return toret;
+		this.status = status;
 	}
 
 	@Override
-	public String toString() {
-		return "Bad request handler";
+	public boolean handlesRequest() {
+		return true;
+	}
+
+	@Override
+	public HTTPResponse getResponse() {
+		return statusCodeResponse(null, status);
 	}
 }

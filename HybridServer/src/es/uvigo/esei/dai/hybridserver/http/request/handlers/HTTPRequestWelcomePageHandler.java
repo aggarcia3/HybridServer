@@ -2,6 +2,7 @@ package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
+import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 
@@ -16,15 +17,28 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 	/**
 	 * Constructs a new HTTP welcome page request handler.
 	 *
-	 * @param request The request to associate this handler to.
+	 * @param request     The request to associate this handler to.
+	 * @param nextHandler The next handler in the responsibility chain. May be null
+	 *                    if there are no more handlers.
+	 * @throws IllegalArgumentException If the request is null.
 	 */
-	public HTTPRequestWelcomePageHandler(final HTTPRequest request) {
-		super(request);
+	public HTTPRequestWelcomePageHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler) {
+		super(request, nextHandler);
+
+		if (request == null) {
+			throw new IllegalArgumentException("A request is needed for this handler");
+		}
+
 		this.html = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
 	}
 
 	@Override
-	public HTTPResponse handle() {
+	public boolean handlesRequest() {
+		return request.getMethod() == HTTPRequestMethod.GET && "".equals(request.getResourceName());
+	}
+
+	@Override
+	public HTTPResponse getResponse() {
 		if (html != null) {
 			return new HTTPResponse()
 				.setStatus(HTTPResponseStatus.S200)
@@ -34,14 +48,7 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 				.setContent(html);
 		} else {
 			// No HTML to send because an internal error occurred, so send a 500 status code
-			return new HTTPResponse()
-				.setStatus(HTTPResponseStatus.S500)
-				.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
+			return statusCodeResponse(request.getServer().getResourceReader(), HTTPResponseStatus.S500);
 		}
-	}
-
-	@Override
-	public String toString() {
-		return "Welcome page handler";
 	}
 }

@@ -7,6 +7,7 @@ import java.util.logging.Level;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
+import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 import es.uvigo.esei.dai.hybridserver.webresource.IOBackedWebResourceMap;
@@ -20,22 +21,33 @@ import es.uvigo.esei.dai.hybridserver.HybridServer;
  * @author Alejandro González García
  */
 final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
-	private final String statusHtml;
 	private final String listHtml;
 
 	/**
 	 * Constructs a new HTTP request welcome page handler.
 	 *
-	 * @param request The request to associate this handler to.
+	 * @param request     The request to associate this handler to.
+	 * @param nextHandler The next handler in the responsibility chain. May be null
+	 *                    if there are no more handlers.
+	 * @throws IllegalArgumentException If the request is null.
 	 */
-	public HTTPGETRequestHTMLResourceHandler(final HTTPRequest request) {
-		super(request);
-		this.statusHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
+	public HTTPGETRequestHTMLResourceHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler) {
+		super(request, nextHandler);
+
+		if (request == null) {
+			throw new IllegalArgumentException("A request is needed for this handler");
+		}
+
 		this.listHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/html_res_list.htm");
 	}
 
 	@Override
-	public HTTPResponse handle() {
+	public boolean handlesRequest() {
+		return request.getMethod() == HTTPRequestMethod.GET && "html".equals(request.getResourceName());
+	}
+
+	@Override
+	public HTTPResponse getResponse() {
 		HTTPResponse toret;
 
 		try {
@@ -57,7 +69,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 						.setContent(requestedHtmlResource.getContent());
 				} else {
 					// The client wants to get an inexistent HTML resource
-					toret = statusCodeResponse(HTTPResponseStatus.S404);
+					toret = statusCodeResponse(request.getServer().getResourceReader(), HTTPResponseStatus.S404);
 				}
 			}
 		} catch (final Exception exc) {
@@ -66,7 +78,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 				server.getLogger().log(Level.WARNING, "An exception has occured while handling a HTML resource GET request", exc);
 			}
 
-			toret = statusCodeResponse(HTTPResponseStatus.S500);
+			toret = statusCodeResponse(request.getServer().getResourceReader(), HTTPResponseStatus.S500);
 		}
 
 		return toret;
@@ -90,6 +102,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 			.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 			.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
 			.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en");
+
 		final Set<String> htmlResources = request.getServer().getWebResourceMap(WebResourceType.HTML).keySet();
 		final StringBuilder resourceListBuilder = new StringBuilder();
 
@@ -111,33 +124,5 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 		return toret.setContent(listHtml
 			.replace("-- RESOURCE LIST PLACEHOLDER --", resourceListBuilder.toString())
 		);
-	}
-
-	/**
-	 * Creates an appropriate error status code response, considering the presence or
-	 * absence of necessary server resources.
-	 *
-	 * @return The created HTTP response.
-	 */
-	private HTTPResponse statusCodeResponse(final HTTPResponseStatus status) {
-		final HTTPResponse toret = new HTTPResponse()
-			.setStatus(status)
-			.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
-
-		if (statusHtml != null) {
-			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
-				.setContent(statusHtml
-					.replace("-- STATUS CODE --", Integer.toString(status.getCode()))
-					.replace("-- STATUS MESSAGE --", status.getStatus())
-				);
-		}
-
-		return toret;
-	}
-
-	@Override
-	public String toString() {
-		return "HTML GET request handler";
 	}
 }
