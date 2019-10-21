@@ -28,7 +28,7 @@ public final class HybridServer {
 
 	private final String name = "Hybrid Server";
 	private final Logger logger = Logger.getLogger(name);
-	private final ResourceReader resourceReader = new ResourceReader(this);
+	private final ResourceReader resourceReader = new ResourceReader(logger);
 	private final Map<WebResourceType, IOBackedWebResourceMap<String, WebResource>> webResourceMaps = new EnumMap<>(WebResourceType.class);
 
 	private final Properties configuration;

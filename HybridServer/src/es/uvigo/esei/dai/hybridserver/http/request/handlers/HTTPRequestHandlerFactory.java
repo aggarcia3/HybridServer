@@ -5,13 +5,13 @@ import java.io.Reader;
 import java.util.logging.Level;
 
 import es.uvigo.esei.dai.hybridserver.HybridServer;
-import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
-import es.uvigo.esei.dai.hybridserver.http.HTTPMissingHeaderException;
+//import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
+//import es.uvigo.esei.dai.hybridserver.http.HTTPMissingHeaderException;
 import es.uvigo.esei.dai.hybridserver.http.HTTPParseException;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedContentEncodingException;
-import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedHeaderException;
+//import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedContentEncodingException;
+//import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedHeaderException;
 
 /**
  * Instantiates the appropriate HTTP request handlers for HTTP requests.
@@ -58,13 +58,15 @@ public final class HTTPRequestHandlerFactory {
 		try {
 			return handlerFor(new HTTPRequest(server, input));
 		} catch (final HTTPParseException exc) {
-			final Throwable cause = exc.getCause();
+			//final Throwable cause = exc.getCause();
 
 			// Initially, for all other causes of the parsing exception, blame the client
 			// with a 400 Bad Request status
 			HTTPResponseStatus status = HTTPResponseStatus.S400;
 
-			if (cause instanceof HTTPUnsupportedHeaderException) {
+			// These checks could be ok, but the application requirements don't need this,
+			// so don't complicate things
+			/*if (cause instanceof HTTPUnsupportedHeaderException) {
 				// Not implemented header, so we should respond with the 501 status code
 				status = HTTPResponseStatus.S501;
 			} else if (cause instanceof HTTPUnsupportedContentEncodingException) {
@@ -74,7 +76,7 @@ public final class HTTPRequestHandlerFactory {
 					((HTTPMissingHeaderException) cause).getHeader() == HTTPHeaders.CONTENT_LENGTH
 			) {
 				status = HTTPResponseStatus.S411;
-			}
+			}*/
 
 			try {
 				return new HTTPRequestStatusCodeHandler(null, null, status);

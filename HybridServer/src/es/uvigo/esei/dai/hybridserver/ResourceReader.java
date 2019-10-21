@@ -23,16 +23,16 @@ public final class ResourceReader {
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 
 	private final Map<String,String> loadedTextResources = new ConcurrentHashMap<>(3); // 3 is the number of resources
-	private final HybridServer server;
+	private final Logger logger;
 
 	/**
 	 * Creates a new resource reader for a server.
 	 *
-	 * @param server The server whose class loader is responsible for the resource
-	 *               loading.
+	 * @param logger The logger responsible for logging the resource reader
+	 *               operations.
 	 */
-	public ResourceReader(final HybridServer server) {
-		this.server = server;
+	public ResourceReader(final Logger logger) {
+		this.logger = logger;
 	}
 
 	/**
@@ -44,8 +44,6 @@ public final class ResourceReader {
 	 *         the operation until it returns a different value, because it won't.
 	 */
 	public String readTextResourceToString(final String name) {
-		final Logger logger = server.getLogger();
-
 		logger.log(Level.FINE, "Trying to serve resource {0} from the cache", name);
 
 		return loadedTextResources.computeIfAbsent(name, (String resource) -> {
@@ -53,7 +51,7 @@ public final class ResourceReader {
 
 			// Read the resource from the input stream
 			long readStart = System.currentTimeMillis();
-			try (final Reader r = new InputStreamReader(server.getClass().getResourceAsStream(name), StandardCharsets.UTF_8)) {
+			try (final Reader r = new InputStreamReader(logger.getClass().getResourceAsStream(name), StandardCharsets.UTF_8)) {
 				// Create a writer backed by a string buffer
 				try (final Writer w = new StringWriter(WRITER_BUFFER_SIZE)) {
 					final char[] buf = new char[TRANSFER_BUFFER_SIZE];
