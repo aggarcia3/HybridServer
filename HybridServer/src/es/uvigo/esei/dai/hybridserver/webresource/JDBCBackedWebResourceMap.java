@@ -478,7 +478,7 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 					final Set<Map.Entry<String, WebResource>> entrySet = new HashSet<>();
 
 					// Populate the result key set with all the UUID.
-					// We ignore invalid UUID, as trying to use them as keys
+					// We ignore invalid UUIDs, as trying to use them as keys
 					// will break assumptions, and normalize them to lower case
 					while (result.next()) {
 						final String key = result.getString("uuid");
@@ -538,10 +538,10 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 	 *                      database after trying.
 	 */
 	private Connection connectToDbIfDeadOrGet() throws SQLException {
-		Connection currentThreadDbConnection = dbConnections.get(currentThreadId.get());
+		Connection currentThreadDbConnection = getCurrentThreadDbConnection();
 
 		if (currentThreadDbConnection == null || !currentThreadDbConnection.isValid(LOGIN_TIMEOUT)) {
-			logger.log(Level.FINE, "The thread with ID {0} is usinga JDBC backed resource map without a established DBMS connection. Trying to establish a connection...", currentThreadId.get());
+			logger.log(Level.FINE, "The thread with ID {0} is using a JDBC backed resource map without a established DBMS connection. Trying to establish a connection...", currentThreadId.get());
 
 			// Actively try to close invalid (but once established) connections,
 			// to maybe allow the JDBC driver to clean up its internal state
@@ -587,9 +587,6 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 	 * @throws SQLException If DBMS or SQL error occurs during the creation.
 	 */
 	private PreparedStatement getPutInsertStatement() throws SQLException {
-		// Like the "INSERT IF NOT EXISTS" most DBMS provide
-		// in one way or another, but in standard SQL.
-		// Based on https://stackoverflow.com/a/17067131
 		return getCurrentThreadDbConnection().prepareStatement(
 			"INSERT INTO " + resourceType.getDbTable() + " (uuid, content) VALUES (?, ?);"
 		);

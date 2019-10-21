@@ -21,8 +21,6 @@ import es.uvigo.esei.dai.hybridserver.HybridServer;
  * @author Alejandro González García
  */
 final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
-	private final String listHtml;
-
 	/**
 	 * Constructs a new HTTP request welcome page handler.
 	 *
@@ -37,8 +35,6 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 		if (request == null) {
 			throw new IllegalArgumentException("A request is needed for this handler");
 		}
-
-		this.listHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/html_res_list.htm");
 	}
 
 	@Override
@@ -93,8 +89,10 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 	 *                     resource list.
 	 */
 	private HTTPResponse htmlResourcesListResponse() throws IOException {
+		final String listHtml = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/html_res_list.htm");
+
 		if (listHtml == null) {
-			throw new IllegalStateException("Tried to generate a HTML resource list, but the needed resource template couldn't load");
+			throw new IllegalStateException("Tried to generate a HTML resource list, but the needed resource template couldn't be loaded");
 		}
 
 		final HTTPResponse toret = new HTTPResponse()

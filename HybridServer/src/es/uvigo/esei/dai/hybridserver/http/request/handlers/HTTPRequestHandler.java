@@ -72,19 +72,21 @@ public abstract class HTTPRequestHandler {
 			response = getResponse();
 
 			if (request != null) {
+				request.getServer().getLogger().log(Level.FINE, "Handler {0} is handling an incoming request", this);
 				request.getServer().getLogger().log(Level.FINE,
-					"Generated response {0} for incoming {1} request to {2}",
+					"Generated response of status {0} for incoming {1} request to {2}",
 					new Object[] {
-						response.getStatus(),
+						response.getStatus().getStatus(),
 						request.getMethod(),
 						request.getResourceChain()
 					}
 				);
 			}
 		} else {
-			System.out.println("Doesn't");
+			request.getServer().getLogger().log(Level.FINER, "Handler {0} not appropiate for request. Trying next handler...", this);
+
 			if (nextHandler != null) {
-				response = nextHandler.getResponse();
+				response = nextHandler.handleRequest();
 			} else {
 				// This shouldn't happen
 				if (request != null) {
@@ -135,7 +137,7 @@ public abstract class HTTPRequestHandler {
 	 * @return The created HTTP response.
 	 * @throws IllegalArgumentException If {@code status} is null.
 	 */
-	protected final HTTPResponse statusCodeResponse(final ResourceReader serverResources, final HTTPResponseStatus status) {
+	static final HTTPResponse statusCodeResponse(final ResourceReader serverResources, final HTTPResponseStatus status) {
 		if (status == null) {
 			throw new IllegalArgumentException("Can't create a status code response for a null status code");
 		}

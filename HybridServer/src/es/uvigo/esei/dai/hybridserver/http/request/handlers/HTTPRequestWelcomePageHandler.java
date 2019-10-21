@@ -12,8 +12,6 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  * @author Alejandro González García
  */
 final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
-	private final String html;
-
 	/**
 	 * Constructs a new HTTP welcome page request handler.
 	 *
@@ -28,8 +26,6 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 		if (request == null) {
 			throw new IllegalArgumentException("A request is needed for this handler");
 		}
-
-		this.html = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
 	}
 
 	@Override
@@ -39,6 +35,8 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 
 	@Override
 	public HTTPResponse getResponse() {
+		final String html = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
+
 		if (html != null) {
 			return new HTTPResponse()
 				.setStatus(HTTPResponseStatus.S200)

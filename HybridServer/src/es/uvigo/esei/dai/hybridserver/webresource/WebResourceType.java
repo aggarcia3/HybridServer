@@ -5,6 +5,7 @@ package es.uvigo.esei.dai.hybridserver.webresource;
  *
  * @author Alejandro González García
  */
+// In the future, there will be a XML resource type
 public enum WebResourceType {
 	/**
 	 * A HTML page.

@@ -127,6 +127,8 @@ public final class HybridServer {
 
 		initializeMemoryWebResourceMaps();
 		try {
+			logger.log(Level.FINER, "Adding {0} HTML pages to the HTML web resource page map", htmlPages.size());
+
 			for (Map.Entry<String, String> htmlPage : htmlPages.entrySet()) {
 				webResourceMaps.get(WebResourceType.HTML).put(
 					htmlPage.getKey(),
@@ -428,6 +430,8 @@ public final class HybridServer {
 
 		// For each resource type (HTML, ...), obtain its resource map that associates UUIDs with their contents
 		for (final WebResourceType resourceType : WebResourceType.values()) {
+			logger.log(Level.FINER, "Initializing DRAM-backed web resource map for resource type {0}", resourceType);
+
 			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));
 		}
 	}
@@ -446,6 +450,8 @@ public final class HybridServer {
 				resourceType,
 				logger
 			);
+
+			logger.log(Level.FINER, "Initializing DBMS-backed web resource map for resource type {0}", resourceType);
 
 			// Get the associated resource map for the DB and put it in the map for resource maps
 			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));

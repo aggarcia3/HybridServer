@@ -1,5 +1,6 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
+import es.uvigo.esei.dai.hybridserver.ResourceReader;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
@@ -14,6 +15,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  */
 final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 	private final HTTPResponseStatus status;
+	private final ResourceReader serverResources;
 
 	/**
 	 * Constructs a new static HTTP status code handler that will generate a 400
@@ -26,7 +28,7 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 	 *                    this handler handles every request.
 	 */
 	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler) {
-		this(request, nextHandler, HTTPResponseStatus.S400);
+		this(request, nextHandler, HTTPResponseStatus.S400, null);
 	}
 
 	/**
@@ -39,9 +41,15 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 	 *                                 will be effectively ignored, as this handler
 	 *                                 handles every request.
 	 * @param status                   The status code of the response to generate.
+	 * @param serverResources          A resource reader of the server that is
+	 *                                 responsible for the request. This argument is
+	 *                                 only used if the request parameter is null,
+	 *                                 which happens when the request object
+	 *                                 couldn't be generated because of parsing
+	 *                                 errors.
 	 * @param IllegalArgumentException If {@code status} is null.
 	 */
-	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler, final HTTPResponseStatus status) {
+	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler, final HTTPResponseStatus status, final ResourceReader serverResources) {
 		super(request, nextHandler);
 
 		if (status == null) {
@@ -49,6 +57,7 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 		}
 
 		this.status = status;
+		this.serverResources = serverResources;
 	}
 
 	@Override
@@ -58,6 +67,12 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 
 	@Override
 	public HTTPResponse getResponse() {
-		return statusCodeResponse(null, status);
+		ResourceReader serverResources = this.serverResources;
+
+		if (request != null) {
+			serverResources = request.getServer().getResourceReader();
+		}
+
+		return statusCodeResponse(serverResources, status);
 	}
 }

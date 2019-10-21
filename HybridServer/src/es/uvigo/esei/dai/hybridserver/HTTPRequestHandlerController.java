@@ -59,10 +59,13 @@ final class HTTPRequestHandlerController {
 			// Handle the HTTP request from the client to get its
 			// response, and send the response
 			final HTTPRequestHandler handler = HTTPRequestHandlerFactory.get().handlerForIncoming(server, input);
+			logger.log(Level.FINER, "Got a handler for an incoming request. Sending out its response to the socket...");
 			handler.handleRequest().print(output);
 		} catch (final IOException exc) {
 			logger.log(Level.WARNING, IO_EXCEPTION_MSG, exc);
 		} finally {
+			logger.log(Level.FINER, "Closing connection for incoming request");
+
 			// Close the readers and writers and the streams
 			// who are being decorated. We ignore errors because
 			// it's not important we failed doing this (when closing

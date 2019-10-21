@@ -8,7 +8,7 @@ package es.uvigo.esei.dai.hybridserver.webresource;
  * @author Alejandro González García
  */
 // In the second iteration, which includes a P2P system, this is the ideal place to
-// store the resource origin server, needed to display the resource list :)
+// store the resource origin server, needed to display the resource list
 public final class WebResource {
 	private final String content;
 

@@ -64,8 +64,8 @@ public final class HTTPRequestHandlerFactory {
 			// with a 400 Bad Request status
 			HTTPResponseStatus status = HTTPResponseStatus.S400;
 
-			// These checks could be ok, but the application requirements don't need this,
-			// so don't complicate things
+			// These checks could be OK in a real production environment, but the
+			// application requirements don't need this, so don't complicate things
 			/*if (cause instanceof HTTPUnsupportedHeaderException) {
 				// Not implemented header, so we should respond with the 501 status code
 				status = HTTPResponseStatus.S501;
@@ -78,8 +78,10 @@ public final class HTTPRequestHandlerFactory {
 				status = HTTPResponseStatus.S411;
 			}*/
 
+			server.getLogger().log(Level.FINE, "A parsing error has occured while reading a HTTP request sent by a client, so trying to send a " + status.getStatus() + " response", exc);
+
 			try {
-				return new HTTPRequestStatusCodeHandler(null, null, status);
+				return new HTTPRequestStatusCodeHandler(null, null, status, server.getResourceReader());
 			} catch (final Exception exc2) {
 				server.getLogger().log(Level.SEVERE, UNCONTROLLED_EXCEPTION_ERROR, exc);
 				throw new IOException(exc2);
@@ -103,7 +105,8 @@ public final class HTTPRequestHandlerFactory {
 		// Ordered from more specific (higher priority, first checked)
 		// to more general (lower priority, last checked).
 		// The order is only relevant if two or more handlers are able
-		// to handle the request
+		// to handle the request. The HTTPRequestStatusCodeHandler handler
+		// handles every request it receives
 		handlerChainBuilder
 			.setFirstHandler(HTTPGETRequestHTMLResourceHandler.class)
 			.setNextHandler(HTTPRequestWelcomePageHandler.class)

@@ -51,7 +51,7 @@ public final class ResourceReader {
 
 			// Read the resource from the input stream
 			long readStart = System.currentTimeMillis();
-			try (final Reader r = new InputStreamReader(logger.getClass().getResourceAsStream(name), StandardCharsets.UTF_8)) {
+			try (final Reader r = new InputStreamReader(HybridServer.class.getResourceAsStream(name), StandardCharsets.UTF_8)) {
 				// Create a writer backed by a string buffer
 				try (final Writer w = new StringWriter(WRITER_BUFFER_SIZE)) {
 					final char[] buf = new char[TRANSFER_BUFFER_SIZE];
