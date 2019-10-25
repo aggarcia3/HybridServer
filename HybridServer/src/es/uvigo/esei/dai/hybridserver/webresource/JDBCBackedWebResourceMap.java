@@ -509,21 +509,37 @@ final class JDBCBackedWebResourceMap implements IOBackedWebResourceMap<String, W
 	 */
 	@Override
 	public void close() throws IOException {
+		SQLException lastException = null;
+
 		for (final Connection dbConnection : dbConnections.values()) {
 			try {
 				if (!dbConnection.isClosed() && !dbConnection.getAutoCommit()) {
 					dbConnection.rollback();
 				}
 			} catch (final SQLException exc) {
-				throw new IOException(exc);
+				if (lastException != null) {
+					lastException.setNextException(exc);
+				} else {
+					lastException = exc;
+				}
 			} finally {
 				// Close the connection no matter if we succeeded doing the rollback
 				try {
 					dbConnection.close();
 				} catch (final SQLException exc) {
-					throw new IOException(exc);
+					if (lastException != null) {
+						lastException.setNextException(exc);
+					} else {
+						lastException = exc;
+					}
 				}
 			}
+		}
+
+		// Delay throwing exceptions until a best effort to close all the connections
+		// has been made
+		if (lastException != null) {
+			throw new IOException(lastException);
 		}
 	}
 

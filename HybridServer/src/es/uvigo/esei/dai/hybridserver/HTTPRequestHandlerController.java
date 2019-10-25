@@ -73,6 +73,8 @@ final class HTTPRequestHandlerController {
 			// as they will likely be related to the same socket)
 			try {
 				output.close();
+			} catch (final IOException ignored) {}
+			try {
 				input.close();
 			} catch (final IOException ignored) {}
 		}

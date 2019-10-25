@@ -7,6 +7,8 @@ package es.uvigo.esei.dai.hybridserver.webresource;
  *
  * @author Alejandro González García
  */
+// This factory will provide a centralized place to instantiate a P2P data origin,
+// which will be a decorator for another underlying data origin
 public abstract class WebResourceDataOriginFactory {
 	/**
 	 * Creates a {@link IOBackedWebResourceMap} that will give access to a data
