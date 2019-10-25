@@ -26,6 +26,8 @@ public final class HTTPRequestHandlerFactory {
 		static final HTTPRequestHandlerFactory INSTANCE = new HTTPRequestHandlerFactory();
 	}
 
+	private HTTPRequestHandlerFactory() {}
+
 	/**
 	 * Gets the only instance in the JVM of this factory.
 	 *
