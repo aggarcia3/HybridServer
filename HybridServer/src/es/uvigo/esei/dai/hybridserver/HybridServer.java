@@ -165,10 +165,10 @@ public final class HybridServer {
 				final String defaultValue = DEFAULT_CONFIGURATION.getProperty(key);
 
 				logger.log(Level.WARNING,
-						readValue == null ?
-							"The configuration value for the parameter \"{0}\" is absent. Using the default value of \"{1}\"" :
-							"The configuration value for the parameter \"{0}\" is not valid. Using the default value of \"{1}\"",
-						new Object[] { key, defaultValue }
+					readValue == null ?
+						"The configuration value for the parameter \"{0}\" is absent. Using the default value of \"{1}\"" :
+						"The configuration value for the parameter \"{0}\" is not valid. Using the default value of \"{1}\"",
+					new Object[] { key, defaultValue }
 				);
 
 				properties.setProperty(key, defaultValue);
