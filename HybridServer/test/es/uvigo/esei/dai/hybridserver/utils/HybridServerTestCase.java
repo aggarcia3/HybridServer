@@ -31,7 +31,7 @@ public abstract class HybridServerTestCase {
 	protected HybridServer server;
 	protected String url;
 
-	@Rule public final TestRule globalTimeout = new Timeout(5, TimeUnit.SECONDS);
+	//@Rule public final TestRule globalTimeout = new Timeout(5, TimeUnit.SECONDS);
 	
 	@Before
 	public void startServer() {

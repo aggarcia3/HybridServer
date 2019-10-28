@@ -49,7 +49,7 @@ final class HTTPPOSTRequestHTMLResourceHandler extends HTTPRequestHandler {
 			final IOBackedWebResourceMap<String, WebResource> htmlResources = request.getServer().getWebResourceMap(WebResourceType.HTML);
 			
 			//Obtengo la página pasada para su inserción
-			String newPage = data.get("message");
+			String newPage = data.get("html");
 			if(newPage == null) {
 				// The client wants to post with an incorrect format
 				return statusCodeResponse(request.getServer().getResourceReader(), HTTPResponseStatus.S400);
@@ -61,7 +61,8 @@ final class HTTPPOSTRequestHTMLResourceHandler extends HTTPRequestHandler {
 					uuid = UUID.randomUUID().toString();
 				}while(htmlResources.containsKey(uuid));
 				//Una vez generado uno no registrado se inserta en el almacenamiento
-				data.put(uuid,newPage);
+				
+				htmlResources.put(uuid,new WebResource(newPage));
 				//Si todo ha salido bien muesrta un enlace a la pagina recién creada
 				response = new HTTPResponse()
 					.setStatus(HTTPResponseStatus.S200)
@@ -71,7 +72,7 @@ final class HTTPPOSTRequestHTMLResourceHandler extends HTTPRequestHandler {
 							+ "       <html lang=\"en\">\n" 
 							+ "           <head></head>"
 							+ "			 <body>"
-							+ "				<a href='/html?uuid="+uuid+"'>"+uuid+"</a>"
+							+ "				<a href=\"html?uuid="+uuid+"\">"+uuid+"</a>"
 							+ "			 </body>"
 							+ "		 </html>");
 			}
