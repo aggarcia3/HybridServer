@@ -11,6 +11,9 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -347,6 +350,44 @@ public final class HybridServer {
 	}
 
 	/**
+	 * Contains the service thread logic, which attends client requests that arrive
+	 * on a stream client socket.
+	 *
+	 * @author Alejandro González García
+	 */
+	private final class ServiceThread implements Runnable {
+		private final Socket clientSocket;
+
+		/**
+		 * Creates a new service thread associated to a given client socket.
+		 *
+		 * @param clientSocket The client socket this service thread will serve.
+		 */
+		public ServiceThread(final Socket clientSocket) {
+			if (clientSocket == null) {
+				throw new IllegalArgumentException("Can't create a service thread for a null client socket");
+			}
+
+			this.clientSocket = clientSocket;
+		}
+
+		@Override
+		public void run() {
+			try {
+				new HTTPRequestHandlerController(
+					HybridServer.this,
+					clientSocket.getInputStream(),
+					clientSocket.getOutputStream()
+				).handleIncoming();
+
+				clientSocket.close();
+			} catch (final Exception exc) {
+				logger.log(Level.WARNING, "An exception has occured while attending a client socket", exc);
+			}
+		}
+	}
+
+	/**
 	 * Contains the logic for accepting stream socket connections in a separate
 	 * thread.
 	 *
@@ -356,6 +397,8 @@ public final class HybridServer {
 		@Override
 		public void run() {
 			logger.log(Level.INFO, "Starting server thread");
+
+			final ExecutorService executorService = Executors.newFixedThreadPool(getNumClients());
 
 			try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(getPort()))) {
 				logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
@@ -368,16 +411,15 @@ public final class HybridServer {
 
 				// Keep accepting incoming connections until other thread signals us to stop
 				while (!interrupted()) {
-					try (final SocketChannel clientSocket = serverSocket.accept()) {
+					try {
+						final SocketChannel clientSocket = serverSocket.accept();
+
 						logger.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
 
 						// Handle the request
 						final Socket oldIoClientSocket = clientSocket.socket();
-						new HTTPRequestHandlerController(
-								HybridServer.this,
-								oldIoClientSocket.getInputStream(),
-								oldIoClientSocket.getOutputStream()
-						).handleIncoming();
+
+						executorService.execute(new ServiceThread(oldIoClientSocket));
 					} catch (final IOException exc) {
 						// Report I/O exceptions, but do not report signals received by other
 						// threads to stop
@@ -389,11 +431,30 @@ public final class HybridServer {
 			} catch (final IOException exc) {
 				logger.log(Level.SEVERE, "Couldn't bind to port {0}", getPort());
 			} finally {
-				// Signal ourselves being stopped
-				synchronized (serverThreadLock) {
-					serverThread = null;
-					serverThreadReady = false;
-					serverThreadLock.notifyAll();
+				// Interrupt service threads
+				executorService.shutdownNow();
+
+				boolean serviceThreadsTerminated = false;
+				try {
+					// Wait for them to stop
+					serviceThreadsTerminated = executorService.awaitTermination(
+						getStopWaitTime(),
+						TimeUnit.MILLISECONDS
+					);
+				} catch (final InterruptedException ignored) {
+					// Ignore, we do the appropriate thing in the finally clause
+				} finally {
+					synchronized (serverThreadLock) {
+						// Only consider ourselves done if the service threads
+						// stopped
+						if (serviceThreadsTerminated) {
+							serverThread = null;
+							serverThreadReady = false;
+						}
+
+						// Notify interested parties so they give up
+						serverThreadLock.notifyAll();
+					}
 				}
 			}
 		}
