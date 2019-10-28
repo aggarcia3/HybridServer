@@ -1,8 +1,7 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
-import java.io.IOException;
+
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -43,9 +42,9 @@ final class HTTPPOSTRequestHTMLResourceHandler extends HTTPRequestHandler {
 	public HTTPResponse getResponse() {
 		HTTPResponse response;
 		try {
-			//Obtengo los datos de la petición
+			//Obtain data of the request
 			final Map<String,String> data = request.getResourceParameters();
-			//Obtengo conexion con almacenamiento
+			//Obtains a conection 
 			final IOBackedWebResourceMap<String, WebResource> htmlResources = request.getServer().getWebResourceMap(WebResourceType.HTML);
 			
 			//Obtengo la página pasada para su inserción
