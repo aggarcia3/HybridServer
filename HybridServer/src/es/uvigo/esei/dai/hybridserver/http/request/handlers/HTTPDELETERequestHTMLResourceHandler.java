@@ -14,7 +14,6 @@ import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
 import es.uvigo.esei.dai.hybridserver.webresource.WebResourceType;
 
 final class HTTPDELETERequestHTMLResourceHandler extends HTTPRequestHandler {
-
 	public HTTPDELETERequestHTMLResourceHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler) {
 		super(request, nextHandler);
 
@@ -48,8 +47,8 @@ final class HTTPDELETERequestHTMLResourceHandler extends HTTPRequestHandler {
 						.setStatus(HTTPResponseStatus.S200)
 						.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 						.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-						.setContent(" <!DOCTYPE html>\n" 
-								+ "       <html lang=\"en\">\n" 
+						.setContent(" <!DOCTYPE html>\n"
+								+ "       <html lang=\"en\">\n"
 								+ "           <head></head>"
 								+ "			 <body>"
 								+ "				<p>Elemento con uuid "+requestedUuid+" eliminado con éxito</p>"
@@ -71,7 +70,4 @@ final class HTTPDELETERequestHTMLResourceHandler extends HTTPRequestHandler {
 
 		return response;
 	}
-	
-
-
 }
