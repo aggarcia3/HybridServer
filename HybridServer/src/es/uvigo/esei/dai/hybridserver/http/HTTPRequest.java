@@ -118,7 +118,8 @@ public final class HTTPRequest {
 
 			switch (method) {
 				case GET:
-				case HEAD: {
+				case HEAD:
+				case DELETE: {
 					// Parse the query string to get the resource parameters, too.
 					// Note that the query string format is not completely defined in the standard:
 					// the standard just specifies what characters can be in a query string and
@@ -167,14 +168,14 @@ public final class HTTPRequest {
 					// decide to respond with a 501 status code (Not Implemented) rather than 400
 					// (Bad Request), as the standard mandates
 					throw new HTTPParseException("This server does not support HTTP request transfer encodings",
-							new HTTPUnsupportedHeaderException(HTTPHeaders.TRANSFER_ENCODING)
+						new HTTPUnsupportedHeaderException(HTTPHeaders.TRANSFER_ENCODING)
 					);
 				}
 
 				// No support for byteranges content type (it affects request length
 				// computation)
 				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_TYPE.getHeader())
-						&& headerPair[1].startsWith("multipart/byteranges")
+					&& headerPair[1].startsWith("multipart/byteranges")
 				) {
 					// Do not send additional cause information, as this content type must not be
 					// used by clients without knowing whether the server supports it, so it would
@@ -184,12 +185,12 @@ public final class HTTPRequest {
 
 				// No support for most content encodings
 				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader())
-						&& !headerPair[1].equalsIgnoreCase("identity")
-						&& !headerPair[1].equalsIgnoreCase("UTF-8")
+					&& !headerPair[1].equalsIgnoreCase("identity")
+					&& !headerPair[1].equalsIgnoreCase("UTF-8")
 				) {
 					throw new HTTPParseException(
-							"This server does not support the specified content encoding for HTTP requests",
-							new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
+						"This server does not support the specified content encoding for HTTP requests",
+						new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
 					);
 				}
 
@@ -237,7 +238,7 @@ public final class HTTPRequest {
 
 		if (messageBodyLength < 0 && inputReader.ready() && inputReader.read() > -1) {
 			throw new HTTPParseException("Missing Content-Length header for HTTP request",
-					new HTTPMissingHeaderException(HTTPHeaders.CONTENT_LENGTH)
+				new HTTPMissingHeaderException(HTTPHeaders.CONTENT_LENGTH)
 			);
 		}
 
@@ -274,32 +275,32 @@ public final class HTTPRequest {
 		}
 
 		if (rawContent != null) {
-			final String contentType = headerParameters.get("Content-Type");
+			// Treat unknown content type as UTF-8 encoded plain text
+			final String contentType = headerParameters.get("Content-Type") != null
+				? headerParameters.get("Content-Type")
+				: "text/plain;charset=UTF-8";
 
 			switch (method) {
 				case POST:
-				case PUT: {
+				case PUT:
+				case DELETE: {
 					// Parse body as resource parameters. The tests require us to follow
 					// the same format as for query strings in the URI. Also, use the
 					// return value to save iterating over the content again
-					final boolean urlEncoded = "application/x-www-form-urlencoded".equals(contentType);
+					final boolean urlEncoded = contentType.startsWith("application/x-www-form-urlencoded");
 					rawContent = parseResourceParameters(rawContent, resourceParameters, urlEncoded);
 					rawContentIsDecoded = urlEncoded;
 				}
 				default: // Do not parse body as resource parameters
 			}
 
-			if (!rawContentIsDecoded && contentType != null) {
+			if (!rawContentIsDecoded) {
 				// Decode body depending on type
-				switch (contentType) {
-					case "application/x-www-form-urlencoded": {
-						this.content = URLDecoder.decode(rawContent, "UTF-8");
-						break;
-					}
-					default: {
-						// Other content types do not get decoded
-						this.content = rawContent;
-					}
+				if (contentType.startsWith("application/x-www-form-urlencoded")) {
+					this.content = URLDecoder.decode(rawContent, "UTF-8");
+				} else {
+					// Other content types do not get decoded
+					this.content = rawContent;
 				}
 			} else {
 				// Nothing to decode
@@ -462,8 +463,8 @@ public final class HTTPRequest {
 	private boolean isValidResourceChain(String uri) {
 		// Start by checking that the URI is not an asterisk with an unsupported method
 		boolean toret = !uri.equals("*")
-				|| method == HTTPRequestMethod.OPTIONS
-				|| method == HTTPRequestMethod.TRACE
+			|| method == HTTPRequestMethod.OPTIONS
+			|| method == HTTPRequestMethod.TRACE
 		;
 
 		// We only need to consider as valid URIs which contain
