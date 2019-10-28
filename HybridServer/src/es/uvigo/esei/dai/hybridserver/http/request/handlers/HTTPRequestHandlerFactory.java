@@ -111,6 +111,8 @@ public final class HTTPRequestHandlerFactory {
 		// handles every request it receives
 		handlerChainBuilder
 			.setFirstHandler(HTTPGETRequestHTMLResourceHandler.class)
+			.setNextHandler(HTTPPOSTRequestHTMLResourceHandler.class)
+			.setNextHandler(HTTPDELETERequestHTMLResourceHandler.class)
 			.setNextHandler(HTTPRequestWelcomePageHandler.class)
 			.setNextHandler(HTTPRequestStatusCodeHandler.class); // 400 Bad Request
 
