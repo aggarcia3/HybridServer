@@ -393,7 +393,7 @@ public final class HybridServer {
 	 *
 	 * @author Alejandro González García
 	 */
-	private class ServerThread extends Thread {
+	private final class ServerThread extends Thread {
 		@Override
 		public void run() {
 			logger.log(Level.INFO, "Starting server thread");
