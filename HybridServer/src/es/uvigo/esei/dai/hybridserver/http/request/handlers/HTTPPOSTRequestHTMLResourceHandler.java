@@ -71,7 +71,7 @@ final class HTTPPOSTRequestHTMLResourceHandler extends HTTPRequestHandler {
 							+ "       <html lang=\"en\">\n" 
 							+ "           <head></head>"
 							+ "			 <body>"
-							+ "				<a href='/html?uuid="+uuid+"'>Visitar la pagina añadida?</a>"
+							+ "				<a href='/html?uuid="+uuid+"'>"+uuid+"</a>"
 							+ "			 </body>"
 							+ "		 </html>");
 			}
