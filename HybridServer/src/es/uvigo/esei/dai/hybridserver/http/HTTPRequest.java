@@ -282,8 +282,7 @@ public final class HTTPRequest {
 
 			switch (method) {
 				case POST:
-				case PUT:
-				case DELETE: {
+				case PUT: {
 					// Parse body as resource parameters. The tests require us to follow
 					// the same format as for query strings in the URI. Also, use the
 					// return value to save iterating over the content again
