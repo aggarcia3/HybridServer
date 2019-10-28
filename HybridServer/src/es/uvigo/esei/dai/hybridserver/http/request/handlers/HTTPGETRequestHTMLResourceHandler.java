@@ -110,7 +110,7 @@ final class HTTPGETRequestHTMLResourceHandler extends HTTPRequestHandler {
 		} else {
 			resourceListBuilder.append("<ul>\n");
 			for (String htmlResourceUuid : htmlResources) {
-				resourceListBuilder.append("\t<li><a href=\"/html?uuid=");
+				resourceListBuilder.append("\t<li><a href=\"html?uuid=");
 				resourceListBuilder.append(htmlResourceUuid);
 				resourceListBuilder.append("\">");
 				resourceListBuilder.append(htmlResourceUuid);
