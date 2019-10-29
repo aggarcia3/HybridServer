@@ -12,6 +12,11 @@ package es.uvigo.esei.dai.hybridserver.webresource;
 public final class WebResource {
 	private final String content;
 
+	/**
+	 * Creates a web resource from its content, without any metadata.
+	 *
+	 * @param content The web resource content.
+	 */
 	public WebResource(final String content) {
 		if (content == null) {
 			throw new IllegalArgumentException("A web resource can't have null content");
