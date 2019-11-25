@@ -83,7 +83,7 @@ public abstract class HTTPRequestHandler {
 				);
 			}
 		} else {
-			request.getServer().getLogger().log(Level.FINER, "Handler {0} not appropiate for request. Trying next handler...", this);
+			request.getServer().getLogger().log(Level.FINER, "Handler {0} not appropriate for request. Trying next handler...", this);
 
 			if (nextHandler != null) {
 				response = nextHandler.handleRequest();

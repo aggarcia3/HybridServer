@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Models a HTTP response.
+ * Models a HTTP response, with an optional text (as opposed to binary) body.
  *
  * @author Alejandro González García
  * @implNote This class is not thread-safe.
@@ -217,7 +217,7 @@ public final class HTTPResponse {
 					(content != null && explicitContentLength != content.length())
 				) {
 					// The content length header is not valid, so just replace it silently
-					value = Integer.toString(explicitContentLength);
+					value = Integer.toString(content == null ? 0 : content.length());
 				}
 			}
 

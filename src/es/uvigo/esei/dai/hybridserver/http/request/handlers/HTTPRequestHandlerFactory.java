@@ -1,17 +1,13 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStream;
 import java.util.logging.Level;
 
 import es.uvigo.esei.dai.hybridserver.HybridServer;
-//import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
-//import es.uvigo.esei.dai.hybridserver.http.HTTPMissingHeaderException;
 import es.uvigo.esei.dai.hybridserver.http.HTTPParseException;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-//import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedContentEncodingException;
-//import es.uvigo.esei.dai.hybridserver.http.HTTPUnsupportedHeaderException;
 
 /**
  * Instantiates the appropriate HTTP request handlers for HTTP requests.
@@ -42,7 +38,7 @@ public final class HTTPRequestHandlerFactory {
 	 * should be read from a input.
 	 *
 	 * @param server The request to create a HTTP request handler for.
-	 * @param input  The Reader instance where the server has an incoming HTTP
+	 * @param input  The InputStream instance where the server has an incoming HTTP
 	 *               request to handle.
 	 * @return The appropriate HTTP request handler for the HTTP request, that will
 	 *         return a HTTP response for the request.
@@ -54,31 +50,14 @@ public final class HTTPRequestHandlerFactory {
 	 *                     conditions, and should be treated by upper layers like a
 	 *                     communication error.
 	 */
-	public HTTPRequestHandler handlerForIncoming(final HybridServer server, final Reader input) throws IOException {
+	public HTTPRequestHandler handlerForIncoming(final HybridServer server, final InputStream input) throws IOException {
 		server.getLogger().log(Level.FINE, "Creating handler for incoming request");
 
 		try {
 			return handlerFor(new HTTPRequest(server, input));
 		} catch (final HTTPParseException exc) {
-			//final Throwable cause = exc.getCause();
-
-			// Initially, for all other causes of the parsing exception, blame the client
-			// with a 400 Bad Request status
-			HTTPResponseStatus status = HTTPResponseStatus.S400;
-
-			// These checks could be OK in a real production environment, but the
-			// application requirements don't need this, so don't complicate things
-			/*if (cause instanceof HTTPUnsupportedHeaderException) {
-				// Not implemented header, so we should respond with the 501 status code
-				status = HTTPResponseStatus.S501;
-			} else if (cause instanceof HTTPUnsupportedContentEncodingException) {
-				// We should respond with 415 Unsupported Media Type
-				status = HTTPResponseStatus.S415;
-			} else if (cause instanceof HTTPMissingHeaderException &&
-					((HTTPMissingHeaderException) cause).getHeader() == HTTPHeaders.CONTENT_LENGTH
-			) {
-				status = HTTPResponseStatus.S411;
-			}*/
+			// Blame the client with a 400 Bad Request status
+			final HTTPResponseStatus status = HTTPResponseStatus.S400;
 
 			server.getLogger().log(Level.FINE, "A parsing error has occured while reading a HTTP request sent by a client, so trying to send a " + status.getStatus() + " response", exc);
 

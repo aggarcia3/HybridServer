@@ -2,10 +2,8 @@ package es.uvigo.esei.dai.hybridserver;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
@@ -24,7 +22,7 @@ final class HTTPRequestHandlerController {
 	private final static String IO_EXCEPTION_MSG = "An I/O error has occured while handling a request";
 
 	private final HybridServer server;
-	private final Reader input;
+	private final InputStream input;
 	private final Writer output;
 
 	/**
@@ -40,7 +38,7 @@ final class HTTPRequestHandlerController {
 		}
 
 		this.server = server;
-		this.input = new InputStreamReader(input, StandardCharsets.UTF_8);
+		this.input = input;
 		this.output = new OutputStreamWriter(output, StandardCharsets.UTF_8);
 	}
 

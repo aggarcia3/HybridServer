@@ -380,7 +380,9 @@ public final class HybridServer {
 					clientSocket.getOutputStream()
 				).handleIncoming();
 
-				clientSocket.close();
+				if (!clientSocket.isClosed()) {
+					clientSocket.close();
+				}
 			} catch (final Exception exc) {
 				logger.log(Level.WARNING, "An exception has occured while attending a client socket", exc);
 			}

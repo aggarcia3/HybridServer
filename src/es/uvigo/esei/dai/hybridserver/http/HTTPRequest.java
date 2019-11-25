@@ -1,16 +1,26 @@
 package es.uvigo.esei.dai.hybridserver.http;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import es.uvigo.esei.dai.hybridserver.HybridServer;
+import es.uvigo.esei.dai.hybridserver.io.HybridInputStream;
+import es.uvigo.esei.dai.hybridserver.io.ReaderInputStreamAdapter;
 
 /**
  * Models a HTTP request.
@@ -25,9 +35,10 @@ public final class HTTPRequest {
 	 * 2396, adding a query string to the end.
 	 */
 	private static final Pattern RELATIVE_URI_REGEX = Pattern.compile(
-			"^/(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*(?:;(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*)*(?:/(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*(?:;(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*)*)*(?:\\?(?:[;/?:@&=+$,a-zA-Z0-9_.!~*'()-]|%[0-9a-fA-F]{2})*)?$");
+		"^/(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*(?:;(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*)*(?:/(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*(?:;(?:[A-za-z0-9_.!~*'():@&=+$,-]|%[0-9a-fA-F]{2})*)*)*(?:\\?(?:[;/?:@&=+$,a-zA-Z0-9_.!~*'()-]|%[0-9a-fA-F]{2})*)?$"
+	);
 
-	private static final String BAD_CONTENT_LENGTH_MESSAGE = "The received Content-Length header doesn't match the actual HTTP request body size";
+	private static final String DEFAULT_CONTENT_TYPE = "text/plain";
 
 	private final HybridServer server;
 	private final HTTPRequestMethod method;
@@ -37,14 +48,16 @@ public final class HTTPRequest {
 	private final String resourceName;
 	private final Map<String, String> resourceParameters;
 	private final Map<String, String> headerParameters;
-	private final String content;
+	private final ByteBuffer content;
+	private final String textContent;
 	private final int contentLength;
 
 	/**
-	 * Creates a HTTP request object associated to a server by parsing input from a reader.
+	 * Creates a HTTP request object associated to a server by parsing input from a
+	 * stream.
 	 *
-	 * @param server The server where this HTTP request arrived.
-	 * @param reader The reader to get a HTTP request from.
+	 * @param server      The server where this HTTP request arrived.
+	 * @param inputStream The stream to get a HTTP request from.
 	 * @throws IOException        If an I/O error occurs during parsing.
 	 * @throws HTTPParseException If the HTTP request has a non-conforming syntax,
 	 *                            or some characteristic of it prevents it from
@@ -53,18 +66,24 @@ public final class HTTPRequest {
 	 *                            a bad request or the server just lacks support for
 	 *                            it.
 	 */
-	public HTTPRequest(final HybridServer server, final Reader reader) throws IOException, HTTPParseException {
-		BufferedReader inputReader;
+	// We do not want to close the HybridInputStream, as it will close the socket
+	// too, and that's not the responsibility of this class
+	@SuppressWarnings("resource")
+	public HTTPRequest(final HybridServer server, final InputStream inputStream) throws IOException, HTTPParseException {
 		String inputLine;
+		HybridInputStream input;
 
-		if (reader == null) {
+		if (inputStream == null) {
 			throw new IllegalArgumentException("Can't associate a HTTP request with a null Reader");
 		}
 
+		input = new HybridInputStream(
+			new BufferedInputStream(inputStream),
+			StandardCharsets.ISO_8859_1
+		);
+
 		// This field may be null
 		this.server = server;
-
-		inputReader = new BufferedReader(reader);
 
 		// According to RFC 2616, section 5, a request is defined by
 		// the following grammar:
@@ -75,10 +94,8 @@ public final class HTTPRequest {
 		// 				CRLF
 		// 				[ message-body ]
 
-		// Therefore, start by reading the request line. The BufferedReader
-		// is lenient with the standard, which mandates CRLF line ending,
-		// because it also supports LF and CR line endings
-		inputLine = inputReader.readLine();
+		// Therefore, start by reading the request line
+		inputLine = input.readLine();
 		if (inputLine == null) {
 			throw new HTTPParseException("Expected the HTTP request line, but reached end of stream");
 		}
@@ -144,10 +161,10 @@ public final class HTTPRequest {
 
 		// Done with the request line, now take care of the headers
 		boolean headersEnd = false;
-		long messageBodyLength = -1L;
+		int messageBodyLength = -1;
 		final Map<String, String> headerParameters = new LinkedHashMap<>(); // Linked so we preserve ordering
 
-		while (!headersEnd && (inputLine = inputReader.readLine()) != null) {
+		while (!headersEnd && (inputLine = input.readLine()) != null) {
 			if (inputLine.isEmpty()) {
 				// Stop parsing headers when we reach an empty line
 				headersEnd = true;
@@ -184,14 +201,20 @@ public final class HTTPRequest {
 				}
 
 				// No support for most content encodings
-				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader())
-					&& !headerPair[1].equalsIgnoreCase("identity")
-					&& !headerPair[1].equalsIgnoreCase("UTF-8")
-				) {
-					throw new HTTPParseException(
-						"This server does not support the specified content encoding for HTTP requests",
-						new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
-					);
+				if (headerPair[0].equalsIgnoreCase(HTTPHeaders.CONTENT_ENCODING.getHeader())) {
+					try {
+						if (
+							!headerPair[1].equalsIgnoreCase("identity") &&
+							!Charset.isSupported(headerPair[1]) // Libraries used by tests indicate charsets here
+						) {
+							throw new HTTPParseException();
+						}
+					} catch (HTTPParseException | IllegalCharsetNameException exc) {
+						throw new HTTPParseException(
+							"This server does not support the specified content encoding for HTTP requests",
+							new HTTPUnsupportedContentEncodingException(headerPair[1].toLowerCase())
+						);
+					}
 				}
 
 				// Get message body length from the corresponding header
@@ -199,12 +222,12 @@ public final class HTTPRequest {
 					try {
 						// The parse method is lenient with the standard, because it allows an
 						// extra '+' symbol before the digits
-						messageBodyLength = Long.parseLong(headerPair[1]);
+						messageBodyLength = Integer.parseInt(headerPair[1]);
 						if (messageBodyLength < 0) {
 							throw new NumberFormatException();
 						}
 					} catch (final NumberFormatException exc) {
-						throw new HTTPParseException("Invalid Content-Length in HTTP request: expected 64-bit natural number", exc);
+						throw new HTTPParseException("Invalid Content-Length in HTTP request: expected 32-bit natural number", exc);
 					}
 				}
 
@@ -236,82 +259,95 @@ public final class HTTPRequest {
 		// compute the message length reliably. Note that the Content-Length header is
 		// only mandatory for requests with a body
 
-		if (messageBodyLength < 0 && inputReader.ready() && inputReader.read() > -1) {
+		if (messageBodyLength < 0 && input.available() > 0 && input.read() > -1) {
 			throw new HTTPParseException("Missing Content-Length header for HTTP request",
 				new HTTPMissingHeaderException(HTTPHeaders.CONTENT_LENGTH)
 			);
 		}
 
-		String rawContent;
-		boolean rawContentIsDecoded = false;
+		ByteBuffer bodyBuffer = null;
 		if (messageBodyLength > 0) {
-			final char[] buf = new char[4 * 1024 * 1024]; // 4 MiB chunk size
-			final StringBuilder contentBuilder = new StringBuilder(buf.length);
+			final ReadableByteChannel inputChannel = Channels.newChannel(input);
+			bodyBuffer = ByteBuffer.allocate(1024); // 1 KiB initial buffer size
+			int totalBytesRead = 0;
+			boolean eof = false;
 
-			// Read the first complete chunks. We don't read the entire
-			// body at once to reduce memory consumption and handle
-			// content length corruption more gracefully
-			for (int i = 0; i < messageBodyLength / buf.length; ++i) {
-				if (inputReader.read(buf) != buf.length) {
-					throw new HTTPParseException(BAD_CONTENT_LENGTH_MESSAGE);
+			do {
+				final int bytesRead = inputChannel.read(bodyBuffer);
+				eof = bytesRead == -1;
+
+				if (bytesRead > 0) {
+					totalBytesRead += bytesRead;
 				}
 
-				contentBuilder.append(buf);
-			}
-
-			// Read the last remaining characters, if any
-			final int remainingChars = (int) Math.min(messageBodyLength % buf.length, Integer.MAX_VALUE);
-			if (remainingChars > 0) {
-				if (inputReader.read(buf, 0, remainingChars) != remainingChars) {
-					throw new HTTPParseException(BAD_CONTENT_LENGTH_MESSAGE);
+				if (!eof && totalBytesRead < messageBodyLength && !bodyBuffer.hasRemaining()) {
+					// We ran out of space for this buffer, so allocate a bigger one
+					final ByteBuffer newBodyBuffer = ByteBuffer.allocate(bodyBuffer.capacity() * 2);
+					bodyBuffer.flip();
+					newBodyBuffer.put(bodyBuffer);
+					bodyBuffer = newBodyBuffer;
 				}
+			} while (!eof && totalBytesRead < messageBodyLength);
 
-				contentBuilder.append(buf, 0, remainingChars);
-			}
-
-			rawContent = contentBuilder.toString();
-		} else {
-			rawContent = null; // Null to distinguish from empty body
+			bodyBuffer.flip();
 		}
 
-		if (rawContent != null) {
-			// Treat unknown content type as UTF-8 encoded plain text
-			final String contentType = headerParameters.get("Content-Type") != null
-				? headerParameters.get("Content-Type")
-				: "text/plain;charset=UTF-8";
+		String textContent = null;
+		if (bodyBuffer != null) {
+			final String contentType = getContentType();
+			final Charset bodyCharset = getBodyCharset();
 
 			switch (method) {
 				case POST:
 				case PUT: {
-					// Parse body as resource parameters. The tests require us to follow
-					// the same format as for query strings in the URI. Also, use the
-					// return value to save iterating over the content again
-					final boolean urlEncoded = contentType.startsWith("application/x-www-form-urlencoded");
-					rawContent = parseResourceParameters(rawContent, resourceParameters, urlEncoded);
-					rawContentIsDecoded = urlEncoded;
+					if (bodyCharset != null) {
+						// Parse body as resource parameters. The tests require us to follow
+						// the same format as for query strings in the URI. Also, use the
+						// return value to save iterating over the content again
+						final boolean urlEncoded = contentType.startsWith(MIME.FORM.getMime());
+
+						assert bodyBuffer.hasArray() : "A byte buffer with a backing array is needed";
+						textContent = parseResourceParameters(
+							new String(bodyBuffer.array(), 0, bodyBuffer.limit(), bodyCharset),
+							resourceParameters,
+							urlEncoded
+						);
+					}
 				}
 				default: // Do not parse body as resource parameters
 			}
 
-			if (!rawContentIsDecoded) {
-				// Decode body depending on type
-				if (contentType.startsWith("application/x-www-form-urlencoded")) {
-					this.content = URLDecoder.decode(rawContent, "UTF-8");
-				} else {
-					// Other content types do not get decoded
-					this.content = rawContent;
+			if (textContent == null && bodyCharset != null) {
+				// Decode textual bodies depending on type
+				if (contentType.startsWith(MIME.FORM.getMime())) {
+					assert bodyBuffer.hasArray() : "A byte buffer with a backing array is needed";
+					textContent = URLDecoder.decode(
+						new String(bodyBuffer.array(), 0, bodyBuffer.limit(), bodyCharset),
+						StandardCharsets.UTF_8.name()
+					);
 				}
-			} else {
-				// Nothing to decode
-				this.content = rawContent;
 			}
-		} else {
-			// Null stays like that
-			this.content = rawContent;
 		}
 
-		// Clamp content length
-		this.contentLength = (int) Math.min(Math.max(messageBodyLength, 0), Integer.MAX_VALUE);
+		this.content = bodyBuffer == null ? null : bodyBuffer.asReadOnlyBuffer();
+		this.textContent = textContent;
+		this.contentLength = Math.max(messageBodyLength, 0);
+	}
+
+	/**
+	 * Creates a HTTP request object by parsing input from a stream.
+	 *
+	 * @param input The stream to get a HTTP request from.
+	 * @throws IOException        If an I/O error occurs during parsing.
+	 * @throws HTTPParseException If the HTTP request has a non-conforming syntax,
+	 *                            or some characteristic of it prevents it from
+	 *                            being processed by this server. Users should check
+	 *                            the cause of this exception to know whether it is
+	 *                            a bad request or the server just lacks support for
+	 *                            it.
+	 */
+	public HTTPRequest(final InputStream input) throws IOException, HTTPParseException {
+		this(null, input);
 	}
 
 	/**
@@ -325,9 +361,34 @@ public final class HTTPRequest {
 	 *                            the cause of this exception to know whether it is
 	 *                            a bad request or the server just lacks support for
 	 *                            it.
+	 *
+	 * @deprecated Reading an arbitrary HTTP request with a {@link Reader} uses
+	 *             complex, additional wrapping layers that affect performance, as a
+	 *             {@link Reader} doesn't expose a way to read bytes from the
+	 *             underlying input stream. The {@code Content-Length} header, used
+	 *             to determine when the HTTP request ends, is expressed in octets
+	 *             according to
+	 *             <a href="https://tools.ietf.org/html/rfc2616#page-119">RFC
+	 *             2616</a>, so reading the request body requires, in order to
+	 *             support multibyte encodings (like UTF-8) and binary content,
+	 *             access to a stream of bytes. This constructor is only provided
+	 *             for compatibility with tests and should be avoided when possible,
+	 *             as the wrapping process may incur in information loss.
 	 */
+	@Deprecated
 	public HTTPRequest(final Reader reader) throws IOException, HTTPParseException {
-		this(null, reader);
+		// Terminal elements of the HTTP request grammar are defined in terms
+		// of US-ASCII characters, with some kind of compatibility with ISO-8859-1:
+		// "The TEXT rule is only used for descriptive field contents and values
+		// that are not intended to be interpreted by the message parser. Words
+		// of *TEXT MAY contain characters from character sets other than ISO-
+		// 8859-1 [22] only when encoded according to the rules of RFC 2047
+		// [14]." - https://tools.ietf.org/html/rfc2616#section-2.2
+		// Moreover, this encoding also preserves the equivalence of string length and
+		// number of bytes, which is necessary for passing tests. And luckily,
+		// the tests don't use characters which don't have an equivalent in
+		// ISO-8859-1
+		this(null, new ReaderInputStreamAdapter(reader, StandardCharsets.ISO_8859_1));
 	}
 
 	/**
@@ -413,27 +474,62 @@ public final class HTTPRequest {
 	}
 
 	/**
-	 * Obtains the full body of this request, sent by the client. If its
-	 * Content-Type is recognized, it's automatically decoded to its intended form.
+	 * Obtains the full body text of this request, sent by the client. This method
+	 * interprets the received data as text. If its Content-Type was recognized
+	 * while parsing it, it's automatically decoded to its intended form.
 	 *
-	 * @return The body of this request. If the client didn't send a request body, a
-	 *         null value will be returned.
+	 * @return The body of this request. If the client didn't send a request body,
+	 *         or it is not text (i.e. the {@link HTTPRequest#bodyIsText} method
+	 *         returns false), then a null value will be returned.
+	 * @see HTTPRequest#bodyIsText
 	 */
 	public String getContent() {
-		return content;
+		return textContent;
+	}
+
+	/**
+	 * Obtains the full body of this request, exactly as sent by the client, in a
+	 * binary form, which the caller is free to manipulate as it pleases.
+	 *
+	 * @return A read-only byte buffer with the bytes that compose the body of this
+	 *         request. Its position will be 0 and its limit will be equal to the
+	 *         length of the message body. If the client didn't send a request body,
+	 *         a null value will be returned.
+	 */
+	public ByteBuffer getBinaryContent() {
+		return content == null ? null : content.duplicate();
 	}
 
 	/**
 	 * Returns the length of the body of this request. It always is zero or greater.
-	 * The request body might be larger than {@code Integer.MAX_VALUE} characters,
-	 * in which case this method returns {@code Integer.MAX_VALUE}. Even if the
-	 * request body fits in an integer, the content length may be different to the
-	 * actual content size because of the decoding done on the server side.
+	 * If multibyte characters are used, the request body interpreted as text might
+	 * be shorter than the length returned by this method. Also, even assuming that
+	 * one byte corresponds exactly to one character, the content length may be
+	 * different to the actual content size because of the decoding done on the
+	 * server side. Therefore, the result of this method should not be used when a
+	 * precise measurement of the actual storage space taken by the processed body
+	 * is needed.
 	 *
-	 * @return The length of the body of this request.
+	 * @return The length of the body of this request, which is the number of body
+	 *         bytes the client sent over the network.
 	 */
 	public int getContentLength() {
 		return contentLength;
+	}
+
+	/**
+	 * Checks whether the message body is to be interpreted as text, according to
+	 * the Content-Type header, or a guess made by the server if it's absent.
+	 *
+	 * @return True if the content is text, false otherwise.
+	 */
+	public boolean contentIsText() {
+		final String contentType = getContentType();
+
+		return
+			contentType.startsWith("text/") ||
+			contentType.startsWith("application/x-www-form-urlencoded")
+		;
 	}
 
 	@Override
@@ -459,7 +555,7 @@ public final class HTTPRequest {
 	 * @param uri The URI to check.
 	 * @return True if and only if the resource chain is valid, false in other case.
 	 */
-	private boolean isValidResourceChain(String uri) {
+	private boolean isValidResourceChain(final String uri) {
 		// Start by checking that the URI is not an asterisk with an unsupported method
 		boolean toret = !uri.equals("*")
 			|| method == HTTPRequestMethod.OPTIONS
@@ -496,7 +592,7 @@ public final class HTTPRequest {
 
 		if (!resourceParameters.isEmpty()) {
 			for (final String pair : resourceParameters.split("&")) {
-				final String[] pairArr = pair.split("=");
+				final String[] pairArr = pair.split("=", 2);
 
 				if (pairArr.length != 2) {
 					throw new HTTPParseException("Malformed key-value resource parameter in HTTP request");
@@ -505,8 +601,8 @@ public final class HTTPRequest {
 				String decodedKey, decodedValue;
 				if (urlEncoded) {
 					try {
-						decodedKey = URLDecoder.decode(pairArr[0], "UTF-8");
-						decodedValue = URLDecoder.decode(pairArr[1], "UTF-8");
+						decodedKey = URLDecoder.decode(pairArr[0], StandardCharsets.UTF_8.name());
+						decodedValue = URLDecoder.decode(pairArr[1], StandardCharsets.UTF_8.name());
 					} catch (final UnsupportedEncodingException exc) {
 						// UTF-8 is always available as per Java specification
 						throw new AssertionError(exc);
@@ -517,7 +613,12 @@ public final class HTTPRequest {
 				}
 
 				pairsMap.put(decodedKey, decodedValue);
-				decodedResourceParameters.append(decodedKey).append("=").append(decodedValue).append("&");
+				decodedResourceParameters
+					.append(decodedKey)
+					.append("=")
+					.append(decodedValue)
+					.append("&")
+				;
 			}
 		}
 
@@ -530,6 +631,81 @@ public final class HTTPRequest {
 	}
 
 	/**
+	 * Retrieves the character encoding used by the client to encode the message
+	 * body text, if any was specified.
+	 *
+	 * @return The described character encoding, which can be {@code null} if no
+	 *         character encoding was indicated or the message body is not text.
+	 */
+	private Charset getBodyCharset() {
+		final String[] typeAndParameters = getContentType().split(";");
+		Charset bodyCharset = null;
+
+		// Nothing to do if the body is not text
+		if (contentIsText()) {
+			// Try to get the charset from the Content-Type header, which is the standard way
+			boolean foundCharsetParameter = false;
+			for (int i = 1; i < typeAndParameters.length && (bodyCharset == null || !foundCharsetParameter); ++i) {
+				final String[] parameterPair = typeAndParameters[i].split("=", 2);
+				foundCharsetParameter = parameterPair[0].equals("charset");
+				if (foundCharsetParameter) {
+					try {
+						bodyCharset = Charset.forName(parameterPair[1]);
+					} catch (UnsupportedCharsetException | IllegalCharsetNameException exc) {
+						// Unrecognized charset, ignore
+					}
+				}
+			}
+
+			// If that failed, try to get it from the Content-Encoding header, which is
+			// a strange place to look at for determining this, but some clients
+			// put it there
+			if (
+				bodyCharset == null &&
+				headerParameters.containsKey(HTTPHeaders.CONTENT_ENCODING.getHeader())
+			) {
+				try {
+					bodyCharset = Charset.forName(
+						headerParameters.get(HTTPHeaders.CONTENT_ENCODING.getHeader())
+					);
+				} catch (UnsupportedCharsetException | IllegalCharsetNameException exc) {
+					// Unrecognized charset, ignore
+				}
+			}
+
+			if (bodyCharset == null) {
+				// The RFC says:
+				// "When no explicit charset parameter is provided by the sender, media
+				// subtypes of the "text" type are defined to have a default charset value
+				// of "ISO-8859-1" when received via HTTP."
+				// We extend that to any textual content type, not just those who are a
+				// subtype of text, for test and real usage compliance
+				bodyCharset = StandardCharsets.ISO_8859_1;
+			}
+		}
+
+		return bodyCharset;
+	}
+
+	/**
+	 * Returns the content type specified in the Content-Type header by the client,
+	 * or a guess made by this server if no type was specified.
+	 *
+	 * @return The described content type.
+	 */
+	private String getContentType() {
+		// "If and only if the media type is not given by a Content-Type field, the
+		// recipient MAY attempt to guess the media type via inspection of its
+		// content and/or the name extension(s) of the URI used to identify the
+		// resource."
+		// For this application textual URI resources are expected, and although
+		// our URIs don't have name extensions this is expected to be a good guess
+		return headerParameters.getOrDefault(
+			HTTPHeaders.CONTENT_TYPE.getHeader(), DEFAULT_CONTENT_TYPE
+		);
+	}
+
+	/**
 	 * Checks whether the specified HTTP version request is supported by this
 	 * server.
 	 *
@@ -537,7 +713,7 @@ public final class HTTPRequest {
 	 * @return True if and only if the HTTP version is supported by HybridServer,
 	 *         false if it's not.
 	 */
-	private static final boolean isSupportedHttpVersion(String version) {
+	private static final boolean isSupportedHttpVersion(final String version) {
 		// "The <minor> number is incremented when the changes made to the
 		// protocol add features which do not change the general message parsing
 		// algorithm, but which may add to the message semantics and imply
