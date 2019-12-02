@@ -35,7 +35,9 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 
 	@Override
 	public HTTPResponse getResponse() {
-		final String html = request.getServer().getResourceReader().readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/welcome.htm");
+		final String html = request.getServer().getStaticResourceReader().readTextResourceToString(
+			"/es/uvigo/esei/dai/hybridserver/resources/welcome.htm"
+		);
 
 		if (html != null) {
 			return new HTTPResponse()
@@ -46,7 +48,7 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 				.setContent(html);
 		} else {
 			// No HTML to send because an internal error occurred, so send a 500 status code
-			return statusCodeResponse(request.getServer().getResourceReader(), HTTPResponseStatus.S500);
+			return statusCodeResponse(request.getServer().getStaticResourceReader(), HTTPResponseStatus.S500);
 		}
 	}
 }

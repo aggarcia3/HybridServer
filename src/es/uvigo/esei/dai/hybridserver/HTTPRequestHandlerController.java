@@ -18,8 +18,8 @@ import es.uvigo.esei.dai.hybridserver.http.request.handlers.HTTPRequestHandlerFa
  *
  * @author Alejandro González García
  */
-final class HTTPRequestHandlerController {
-	private final static String IO_EXCEPTION_MSG = "An I/O error has occured while handling a request";
+final class HTTPRequestHandlerController implements AutoCloseable {
+	final static String IO_EXCEPTION_MSG = "An I/O error has occured while handling a request";
 
 	private final HybridServer server;
 	private final InputStream input;
@@ -47,8 +47,7 @@ final class HTTPRequestHandlerController {
 	 * this controller. When this method returns, it is guaranteed that the server
 	 * made its best effort to send the appropriate response to the client. The
 	 * caller should ensure that the streams used by this object are ready for input
-	 * and output. The invoker should not send any bytes on the streams before or
-	 * after calling this method, as this method closes them automatically.
+	 * and output.
 	 */
 	public void handleIncoming() {
 		final Logger logger = server.getLogger();
@@ -58,23 +57,24 @@ final class HTTPRequestHandlerController {
 			// response, and send the response
 			final HTTPRequestHandler handler = HTTPRequestHandlerFactory.get().handlerForIncoming(server, input);
 			logger.log(Level.FINER, "Got a handler for an incoming request. Sending out its response to the socket...");
-			handler.handleRequest().print(output);
+			handler.handleRequest().printTo(output);
 		} catch (final IOException exc) {
 			logger.log(Level.WARNING, IO_EXCEPTION_MSG, exc);
-		} finally {
-			logger.log(Level.FINER, "Closing connection for incoming request");
-
-			// Close the readers and writers and the streams
-			// who are being decorated. We ignore errors because
-			// it's not important we failed doing this (when closing
-			// the output stream, we might as well close the input one,
-			// as they will likely be related to the same socket)
-			try {
-				output.close();
-			} catch (final IOException ignored) {}
-			try {
-				input.close();
-			} catch (final IOException ignored) {}
+		} catch (final Throwable exc) {
+			logger.log(Level.WARNING,
+				"An unexpected exception has occurred while handling an incoming request. No response can be sent to the client", exc
+			);
 		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		// Wrap each close operation in a try-catch to avoid possible ClosedByInterruptException propagation
+		try {
+			output.close();
+		} catch (final IOException ignored) {}
+		try {
+			input.close();
+		} catch (final IOException ignored) {}
 	}
 }

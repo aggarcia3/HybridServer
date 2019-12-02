@@ -1,102 +1,47 @@
 package es.uvigo.esei.dai.hybridserver;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.Collections;
-import java.util.EnumMap;
+import java.lang.Thread.State;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import es.uvigo.esei.dai.hybridserver.webresource.IOBackedWebResourceMap;
+import es.uvigo.esei.dai.hybridserver.webresource.HTMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOFactory;
+import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOSettings;
+import es.uvigo.esei.dai.hybridserver.webresource.MemoryWebResourceDAOFactory;
+import es.uvigo.esei.dai.hybridserver.webresource.MemoryWebResourceDAOSettings;
 import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDataOriginFactory;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceJDBCDataOriginSettings;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceMemoryDataOriginSettings;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceType;
+import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAO;
+import es.uvigo.esei.dai.hybridserver.webresource.XMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresource.XSLTWebResource;
 
+/**
+ * Models the Hybrid Server instance as a whole, acting as a high level
+ * controller for the server functionality and runtime configuration information
+ * expert.
+ *
+ * @author Alejandro González García
+ * @implNote The implementation of this class is thread-safe.
+ */
 public final class HybridServer {
-	private static final Properties DEFAULT_CONFIGURATION;
-	private static final Map<String, Predicate<String>> CONFIGURATION_PARAMETERS_PREDICATES;
+	private static final String NAME = "Hybrid Server";
 
-	private final String name = "Hybrid Server";
-	private final Logger logger = Logger.getLogger(name);
-	private final ResourceReader resourceReader = new ResourceReader(logger);
-	private final Map<WebResourceType, IOBackedWebResourceMap<String, WebResource>> webResourceMaps = new EnumMap<>(WebResourceType.class);
+	private final Logger logger = Logger.getLogger(NAME);
 
-	private final Properties configuration;
+	private final StaticResourceReader staticResourceReader = new StaticResourceReader(logger);
+	private final Map<Class<? extends WebResource<?>>, WebResourceDAO<? extends WebResource<?>>> webResourcesMap;
+	private final Configuration configuration;
+	private final AtomicReference<HybridServerThread> serverThread = new AtomicReference<>();
 
-	// Accesses to this attribute should be guarded by serverThreadLock
-	private Thread serverThread = null;
-	// Accesses to this attribute should be guarded by serverThreadLock
-	private boolean serverThreadReady = false;
-	private final Object serverThreadLock = new Object();
-
-	static {
-		DEFAULT_CONFIGURATION = new Properties();
-		final Map<String, Predicate<String>> parametersPredicates = new HashMap<>(6);
-
-		// Predicate that every accepted natural integer configuration parameter
-		// must validate
-		final Predicate<String> naturalIntegerPredicate = new Predicate<String>() {
-			@Override
-			public boolean test(final String value) {
-				try {
-					int intValue = Integer.parseInt(value);
-
-					// Only positive integers greater than 0 are valid
-					if (intValue < 1) {
-						throw new NumberFormatException();
-					}
-
-					return true;
-				} catch (final NumberFormatException exc) {
-					return false;
-				}
-			}
-		};
-
-		// Predicate that every non-null parameter must validate
-		final Predicate<String> nonNullStringPredicate = new Predicate<String>() {
-			@Override
-			public boolean test(final String value) {
-				return value != null;
-			}
-		};
-
-		// Actual configuration parameters, with their default values and
-		// validation predicates
-		DEFAULT_CONFIGURATION.setProperty("port", Integer.toString(8888));
-		parametersPredicates.put("port", naturalIntegerPredicate);
-
-		DEFAULT_CONFIGURATION.setProperty("stopWaitTime", Integer.toString(10000));
-		parametersPredicates.put("stopWaitTime", naturalIntegerPredicate);
-
-		DEFAULT_CONFIGURATION.setProperty("numClients", Integer.toString(50));
-		parametersPredicates.put("numClients", naturalIntegerPredicate);
-
-		DEFAULT_CONFIGURATION.setProperty("db.url", "jdbc:mysql://localhost:3306/hstestdb");
-		parametersPredicates.put("db.url", nonNullStringPredicate);
-
-		DEFAULT_CONFIGURATION.setProperty("db.user", "hsdb");
-		parametersPredicates.put("db.user", nonNullStringPredicate);
-
-		DEFAULT_CONFIGURATION.setProperty("db.password", "hsdbpass");
-		parametersPredicates.put("db.password", nonNullStringPredicate);
-
-		// Wrap the map as an unmodifiable one to better state our vision
-		// of it being read-only after initialization
-		CONFIGURATION_PARAMETERS_PREDICATES = Collections.unmodifiableMap(parametersPredicates);
+	{
+		this.webResourcesMap = new HashMap<>();
 	}
 
 	/**
@@ -104,14 +49,54 @@ public final class HybridServer {
 	 * the default configuration parameters.
 	 */
 	public HybridServer() {
-		this.configuration = new Properties(DEFAULT_CONFIGURATION);
+		this.configuration = new Configuration();
 
-		initializeJDBCWebResourceMaps(
-			configuration.getProperty("db.url"),
-			configuration.getProperty("db.user"),
-			configuration.getProperty("db.password"),
-			logger
-		);
+		initializeJDBCBackedDAO();
+	}
+
+	/**
+	 * Constructs a Hybrid Server that will serve requests from a database. The
+	 * configuration parameters, which specify the necessary information to connect
+	 * to the database, are read from the provided {@link Configuration} object.
+	 *
+	 * @param configuration The {@link Configuration} object which contains all the
+	 *                      configuration parameters for this server.
+	 * @throws IllegalArgumentException If the {@code configuration} parameter is
+	 *                                  {@code null}.
+	 */
+	public HybridServer(final Configuration configuration) {
+		this.configuration = configuration;
+
+		initializeJDBCBackedDAO();
+	}
+
+	/**
+	 * Constructs a Hybrid Server that will serve requests from a database. The
+	 * configuration parameters, which specify the necessary information to connect
+	 * to the database, are read from the provided {@link Properties} object.
+	 *
+	 * @param properties The Properties object which contains all the configuration
+	 *                   parameters for this server.
+	 * @throws IllegalArgumentException If some setting contained in
+	 *                                  {@code properties} is invalid.
+	 * @deprecated Using {@link Properties} objects for setting server parameters is
+	 *             discouraged, as their format was not extended to be compatible
+	 *             with the P2P system, so the server will never operate in P2P mode
+	 *             when using this constructor. Moreover, XML-based configuration is
+	 *             technically superior in several ways. This constructor is
+	 *             provided for backwards compatibility only.
+	 */
+	@Deprecated
+	public HybridServer(final Properties properties) {
+		try {
+			this.configuration = new PropertiesConfigurationLoader().load(properties);
+		} catch (final Exception exc) {
+			throw new IllegalArgumentException(
+				"The specified configuration properties are invalid", exc
+			);
+		}
+
+		initializeJDBCBackedDAO();
 	}
 
 	/**
@@ -125,18 +110,29 @@ public final class HybridServer {
 	 *                  the map are UUIDs, and the values the content associated to
 	 *                  that UUID.
 	 */
+	@SuppressWarnings("unchecked") // No heap pollution occurs due to how the map is initialized
 	public HybridServer(final Map<String, String> htmlPages) {
-		this.configuration = new Properties(DEFAULT_CONFIGURATION);
+		this.configuration = new Configuration();
 
-		initializeMemoryWebResourceMaps();
+		initializeMemoryBackedDAO();
+
 		try {
-			logger.log(Level.FINER, "Adding {0} HTML pages to the HTML web resource page map", htmlPages.size());
+			logger.log(Level.FINER, "Adding {0} HTML pages to the HTML web resources collection", htmlPages.size());
 
-			for (Map.Entry<String, String> htmlPage : htmlPages.entrySet()) {
-				webResourceMaps.get(WebResourceType.HTML).put(
-					htmlPage.getKey(),
-					new WebResource(htmlPage.getValue())
-				);
+			for (final Entry<String, String> htmlPage : htmlPages.entrySet()) {
+				try {
+					((WebResourceDAO<HTMLWebResource>) webResourcesMap.get(HTMLWebResource.class)).put(
+						new HTMLWebResource(
+							UUID.fromString(htmlPage.getKey()), htmlPage.getValue()
+						)
+					);
+				} catch (final IllegalArgumentException exc) {
+					logger.log(
+						Level.WARNING,
+						"\"{0}\" is not a valid UUID, so it was not added to the web resources of the server",
+						htmlPage.getKey()
+					);
+				}
 			}
 		} catch (final IOException exc) {
 			// This shouldn't happen
@@ -145,118 +141,69 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Constructs a Hybrid Server that will serve requests from a database, with
-	 * modifiable configuration parameters. The configuration parameters, which
-	 * specify the necessary information to connect to the database, are read from a
-	 * Properties object. Absent or invalid values will be set to default ones, and
-	 * a warning will be issued for the operator to review and (ideally) act upon.
-	 *
-	 * @param properties The Properties object which contains all the configuration
-	 *                   parameters for this server.
-	 */
-	public HybridServer(final Properties properties) {
-		if (properties == null) {
-			throw new IllegalArgumentException("Can't read configuration options for a server from a null properties object");
-		}
-
-		// Validate parameters, initializing the missing ones to default values
-		for (final Map.Entry<String, Predicate<String>> configurationEntry : CONFIGURATION_PARAMETERS_PREDICATES.entrySet()) {
-			final String key = configurationEntry.getKey();
-			final String readValue = properties.getProperty(key);
-
-			if (readValue == null || !configurationEntry.getValue().test(readValue)) {
-				final String defaultValue = DEFAULT_CONFIGURATION.getProperty(key);
-
-				logger.log(Level.WARNING,
-					readValue == null ?
-						"The configuration value for the parameter \"{0}\" is absent. Using the default value of \"{1}\"" :
-						"The configuration value for the parameter \"{0}\" is not valid. Using the default value of \"{1}\"",
-					new Object[] { key, defaultValue }
-				);
-
-				properties.setProperty(key, defaultValue);
-			}
-		}
-
-		this.configuration = properties;
-
-		initializeJDBCWebResourceMaps(
-			properties.getProperty("db.url"),
-			properties.getProperty("db.user"),
-			properties.getProperty("db.password"),
-			logger
-		);
-	}
-
-	/**
 	 * Returns the user-friendly name of this server.
 	 *
 	 * @return The user-friendly name of this server. Currently, "Hybrid Server".
 	 */
 	public String getName() {
-		return name;
+		return NAME;
+	}
+
+	/**
+	 * Gets the configuration that this server is using.
+	 *
+	 * @return The aforementioned configuration.
+	 */
+	public Configuration getConfiguration() {
+		return configuration;
 	}
 
 	/**
 	 * Gets the port this server will listen on, if it was not yet started, or is
 	 * listening on, if it was started successfully.
 	 *
-	 * @return The port this server will bind a socket on, for clients to connect to.
+	 * @return The port this server will bind a socket on, for clients to connect
+	 *         to.
+	 * @deprecated The method {@link HybridServer#getConfiguration} provides access
+	 *             to this and other configuration parameters in a more generic way.
+	 *             This method is only provided for backward compatibility with the
+	 *             first release tests.
 	 */
+	@Deprecated
 	public int getPort() {
-		return getConfigurationInteger("port");
+		return configuration.getHttpPort();
 	}
 
 	/**
-	 * Obtains the maximum number of clients that this server will respond to in
-	 * parallel.
+	 * Gets the the web resource DAO for a kind of web resources of this Hybrid
+	 * Server.
 	 *
-	 * @return The described number.
+	 * @param <T>             The type of web resource to get its DAO of.
+	 * @param webResourceType The {@link Class} object that the desired web
+	 *                        resources are a instance of.
+	 * @return The web resource DAO of the specified type of web resource for this
+	 *         server. If this server doesn't serve that kind of resource, the
+	 *         result will be {@code null}.
 	 */
-	public int getNumClients() {
-		return getConfigurationInteger("numClients");
+	@SuppressWarnings("unchecked") // No heap pollution occurs due to how the map is initialized
+	public <T extends WebResource<T>> WebResourceDAO<T> getWebResourceDAO(final Class<T> webResourceType) {
+		return (WebResourceDAO<T>) webResourcesMap.get(webResourceType);
 	}
 
 	/**
-	 * Gets the maximum time that a call to {@link HybridServer#stop} will block
-	 * waiting for the main server thread to stop.
-	 *
-	 * @return The described time, in milliseconds.
-	 */
-	protected int getStopWaitTime() {
-		return getConfigurationInteger("stopWaitTime");
-	}
-
-	/**
-	 * Obtains the Java resource reader for use with this server.
+	 * Obtains the resource reader to use to read static Java resources for this
+	 * server.
 	 *
 	 * @return The described resource reader.
 	 */
-	public ResourceReader getResourceReader() {
-		return resourceReader;
-	}
-
-	/**
-	 * Gets the the web resource map for a kind of web resources of this Hybrid
-	 * Server.
-	 *
-	 * @return The web resource map of the specified type of web resource for this
-	 *         server.
-	 */
-	public IOBackedWebResourceMap<String, WebResource> getWebResourceMap(final WebResourceType webResourceType) {
-		final IOBackedWebResourceMap<String, WebResource> toret = webResourceMaps.get(webResourceType);
-
-		// Sanity check
-		if (toret == null) {
-			throw new AssertionError();
-		}
-
-		return toret;
+	public StaticResourceReader getStaticResourceReader() {
+		return staticResourceReader;
 	}
 
 	/**
 	 * Obtains the logger instance that is responsible for printing logging
-	 * information to the server operator.
+	 * information to the server operator. This instance is constant during
+	 * the lifetime of the application.
 	 *
 	 * @return The logger instance for this Hybrid Server.
 	 */
@@ -273,20 +220,28 @@ public final class HybridServer {
 	 * method has no effect.
 	 */
 	public void start() {
-		// Create a thread if we aren't already started, and wait for it to be ready
-		synchronized (serverThreadLock) {
-			if (serverThread == null) {
-				System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
+		System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
 
-				serverThread = new ServerThread();
-				serverThread.start();
+		final HybridServerThread serverThread = this.serverThread.updateAndGet(
+			(final HybridServerThread thread) -> {
+				return thread == null || thread.getState() == State.TERMINATED ?
+					new HybridServerThread(this) : thread
+				; 
+			}
+		);
 
-				// Wait until the server thread is ready to accept connections or stopped,
-				// so users (and tests) of this method know for sure that we did our best
-				// to start the server before returning the control to them
-				while (serverThread != null && !serverThreadReady) {
+		// Only start the thread if it is new
+		if (serverThread.getState() == State.NEW) {
+			serverThread.start();
+
+			// Wait until the server thread is ready to accept connections or stopped,
+			// so users (and tests) of this method know for sure that we did our best
+			// to start the server before returning the control to them
+			final Object readyLock = serverThread.getStateLock();
+			synchronized (readyLock) {
+				while (!serverThread.isReady() && !serverThread.isPortInUse()) {
 					try {
-						serverThreadLock.wait();
+						readyLock.wait();
 					} catch (final InterruptedException exc) {
 						// Give up waiting
 						break;
@@ -302,35 +257,42 @@ public final class HybridServer {
 	 * whatever occurs first.
 	 */
 	public void stop() {
-		synchronized (serverThreadLock) {
-			if (serverThread != null) {
-				// Signal the server thread to stop
-				serverThread.interrupt();
+		final HybridServerThread serverThread = this.serverThread.get();
 
-				// Wait for it to actually stop
-				final long waitStart = System.currentTimeMillis();
-				final int stopWaitTime = getStopWaitTime();
-				final long waitEnd = waitStart + stopWaitTime;
-				while (serverThread != null && System.currentTimeMillis() - waitStart < stopWaitTime) {
+		if (serverThread != null) {
+			serverThread.interrupt();
+
+			// Wait for it to actually stop
+			final long stopWaitTime = getStopWaitSeconds() * 1000;
+			final long waitStart = System.currentTimeMillis();
+			final long waitEnd = waitStart + stopWaitTime;
+
+			final Object readyLock = serverThread.getStateLock();
+			boolean stopFailed = false;
+			synchronized (readyLock) {
+				while (serverThread.isReady() && System.currentTimeMillis() - waitStart < stopWaitTime) {
 					try {
-						serverThreadLock.wait(waitEnd - System.currentTimeMillis());
+						readyLock.wait(waitEnd - System.currentTimeMillis());
 					} catch (final InterruptedException | IllegalArgumentException exc) {
 						// Ignore, we did our best to stop the server
 					}
 				}
 
 				// Warn the operator if we didn't succeed in stopping the server
-				if (serverThread != null) {
+				if (serverThread.isReady()) {
 					logger.log(Level.SEVERE, "Couldn't stop the server in a timely manner");
-				} else {
-					// Release resources held by I/O backed maps
-					try {
-						for (final IOBackedWebResourceMap<?, ?> resourceMap : webResourceMaps.values()) {
-							resourceMap.close();
-						}
-					} catch (final IOException exc) {
-						logger.log(Level.WARNING, "Couldn't relinquish the resources associated to a I/O backed map", exc);
+					stopFailed = true;
+				}
+			}
+
+			// Release resources held by data access objects
+			if (!stopFailed) {
+				try {
+					for (final WebResourceDAO<?> webResourceDao : webResourcesMap.values()) {
+						webResourceDao.close();
 					}
+				} catch (final Exception exc) {
+					logger.log(Level.WARNING, "Couldn't relinquish the resources associated to a web resource DAO", exc);
 				}
 			}
 		}
@@ -344,180 +306,47 @@ public final class HybridServer {
 	 *         in other case.
 	 */
 	public boolean started() {
-		synchronized (serverThreadLock) {
-			return serverThread != null && serverThreadReady;
-		}
+		final HybridServerThread serverThread = this.serverThread.get();
+		return serverThread != null && serverThread.isAlive() && serverThread.isReady();
 	}
 
 	/**
-	 * Contains the service thread logic, which attends client requests that arrive
-	 * on a stream client socket.
+	 * Returns the maximum number of seconds that the server will wait for its
+	 * worker threads to stop, when ordered to.
 	 *
-	 * @author Alejandro González García
+	 * @return The described number of seconds.
 	 */
-	private final class ServiceThread implements Runnable {
-		private final Socket clientSocket;
-
-		/**
-		 * Creates a new service thread associated to a given client socket.
-		 *
-		 * @param clientSocket The client socket this service thread will serve.
-		 */
-		public ServiceThread(final Socket clientSocket) {
-			if (clientSocket == null) {
-				throw new IllegalArgumentException("Can't create a service thread for a null client socket");
-			}
-
-			this.clientSocket = clientSocket;
-		}
-
-		@Override
-		public void run() {
-			try {
-				new HTTPRequestHandlerController(
-					HybridServer.this,
-					clientSocket.getInputStream(),
-					clientSocket.getOutputStream()
-				).handleIncoming();
-
-				if (!clientSocket.isClosed()) {
-					clientSocket.close();
-				}
-			} catch (final Exception exc) {
-				logger.log(Level.WARNING, "An exception has occured while attending a client socket", exc);
-			}
-		}
+	int getStopWaitSeconds() {
+		return 30;
 	}
 
 	/**
-	 * Contains the logic for accepting stream socket connections in a separate
-	 * thread.
-	 *
-	 * @author Alejandro González García
+	 * Initializes memory-backed data access objects for the web resources this
+	 * server works with.
 	 */
-	private final class ServerThread extends Thread {
-		@Override
-		public void run() {
-			logger.log(Level.INFO, "Starting server thread");
+	private void initializeMemoryBackedDAO() {
+		final MemoryWebResourceDAOFactory daoFactory = MemoryWebResourceDAOFactory.get();
+		final MemoryWebResourceDAOSettings settings = new MemoryWebResourceDAOSettings();
 
-			final ExecutorService executorService = Executors.newFixedThreadPool(getNumClients());
-
-			try (final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(new InetSocketAddress(getPort()))) {
-				logger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
-
-				// Tell other threads we're ready to accept connections
-				synchronized (serverThreadLock) {
-					serverThreadReady = true;
-					serverThreadLock.notifyAll();
-				}
-
-				// Keep accepting incoming connections until other thread signals us to stop
-				while (!interrupted()) {
-					try {
-						final SocketChannel clientSocket = serverSocket.accept();
-
-						logger.log(Level.FINE, "Received connection from {0}", clientSocket.getRemoteAddress());
-
-						// Handle the request
-						final Socket oldIoClientSocket = clientSocket.socket();
-
-						executorService.execute(new ServiceThread(oldIoClientSocket));
-					} catch (final IOException exc) {
-						// Report I/O exceptions, but do not report signals received by other
-						// threads to stop
-						if (!(exc instanceof ClosedByInterruptException)) {
-							logger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
-						}
-					}
-				}
-			} catch (final IOException exc) {
-				logger.log(Level.SEVERE, "Couldn't bind to port {0}", getPort());
-			} finally {
-				// Interrupt service threads
-				executorService.shutdownNow();
-
-				boolean serviceThreadsTerminated = false;
-				try {
-					// Wait for them to stop
-					serviceThreadsTerminated = executorService.awaitTermination(
-						getStopWaitTime(),
-						TimeUnit.MILLISECONDS
-					);
-				} catch (final InterruptedException ignored) {
-					// Ignore, we do the appropriate thing in the finally clause
-				} finally {
-					synchronized (serverThreadLock) {
-						// Only consider ourselves done if the service threads
-						// stopped
-						if (serviceThreadsTerminated) {
-							serverThread = null;
-							serverThreadReady = false;
-						}
-
-						// Notify interested parties so they give up
-						serverThreadLock.notifyAll();
-					}
-				}
-			}
-		}
+		webResourcesMap.put(HTMLWebResource.class, daoFactory.createDAO(settings, HTMLWebResource.class));
+		webResourcesMap.put(XMLWebResource.class, daoFactory.createDAO(settings, XMLWebResource.class));
+		webResourcesMap.put(XSDWebResource.class, daoFactory.createDAO(settings, XSDWebResource.class));
+		webResourcesMap.put(XSLTWebResource.class, daoFactory.createDAO(settings, XSLTWebResource.class));
 	}
 
 	/**
-	 * Gets the integer value associated to the specified key in the configuration.
-	 * The implementation assumes that if the key is present in the loaded
-	 * configuration or the default configuration its value is correct.
-	 *
-	 * @param key The key to get its associated integer of.
-	 * @return The integer associated to the configuration key.
+	 * Initializes JDBC-backed data access objects for the web resources this
+	 * server works with.
 	 */
-	private int getConfigurationInteger(final String key) {
-		String value = configuration.getProperty(key);
+	private void initializeJDBCBackedDAO() {
+		final JDBCWebResourceDAOFactory daoFactory = JDBCWebResourceDAOFactory.get();
+		final JDBCWebResourceDAOSettings settings = new JDBCWebResourceDAOSettings(
+			configuration.getDbURL(), configuration.getDbUser(), configuration.getDbPassword(), logger
+		);
 
-		if (value == null) {
-			value = DEFAULT_CONFIGURATION.getProperty(key);
-			if (value == null) {
-				throw new AssertionError("Couldn't get a default integer value from the default configuration");
-			}
-		}
-
-		return Integer.parseInt(value);
-	}
-
-	/**
-	 * Initializes the {@code webResourceMaps} attribute with a web resource map for
-	 * each web resource type, using DRAM-backed web resource maps.
-	 */
-	private void initializeMemoryWebResourceMaps() {
-		// Get the appropriate settings for a memory data origin for web resources
-		final WebResourceMemoryDataOriginSettings originSettings = new WebResourceMemoryDataOriginSettings();
-
-		// For each resource type (HTML, ...), obtain its resource map that associates UUIDs with their contents
-		for (final WebResourceType resourceType : WebResourceType.values()) {
-			logger.log(Level.FINER, "Initializing DRAM-backed web resource map for resource type {0}", resourceType);
-
-			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));
-		}
-	}
-
-	/**
-	 * Initializes the {@code webResourceMaps} attribute with a web resource map for
-	 * each web resource type, using relational DBMS-backed web resource maps.
-	 */
-	private void initializeJDBCWebResourceMaps(final String dbUrl, final String dbUser, final String dbPassword, final Logger logger) {
-		for (final WebResourceType resourceType : WebResourceType.values()) {
-			// Configure the JDBC data origin with the relevant settings
-			final WebResourceJDBCDataOriginSettings originSettings = new WebResourceJDBCDataOriginSettings(
-				dbUrl,
-				dbUser,
-				dbPassword,
-				resourceType,
-				logger
-			);
-
-			logger.log(Level.FINER, "Initializing DBMS-backed web resource map for resource type {0}", resourceType);
-
-			// Get the associated resource map for the DB and put it in the map for resource maps
-			webResourceMaps.put(resourceType, WebResourceDataOriginFactory.createWebResourceMap(originSettings));
-		}
+		webResourcesMap.put(HTMLWebResource.class, daoFactory.createDAO(settings, HTMLWebResource.class));
+		webResourcesMap.put(XMLWebResource.class, daoFactory.createDAO(settings, XMLWebResource.class));
+		webResourcesMap.put(XSDWebResource.class, daoFactory.createDAO(settings, XSDWebResource.class));
+		webResourcesMap.put(XSLTWebResource.class, daoFactory.createDAO(settings, XSLTWebResource.class));
 	}
 }

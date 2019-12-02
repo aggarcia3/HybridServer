@@ -15,8 +15,6 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  * @author Alejandro González García
  */
 public final class HTTPRequestHandlerFactory {
-	private static final String UNCONTROLLED_EXCEPTION_ERROR = "Couldn't get a HTTP request handler for a request. This is a signal of an application logic error that should be fixed";
-
 	// Initialization-on-demand holder idiom
 	private static final class HTTPRequestHandlerFactoryInstanceHolder {
 		static final HTTPRequestHandlerFactory INSTANCE = new HTTPRequestHandlerFactory();
@@ -35,7 +33,7 @@ public final class HTTPRequestHandlerFactory {
 
 	/**
 	 * Creates a HTTP request handler for a yet to be parsed HTTP request, which
-	 * should be read from a input.
+	 * should be read from a input stream.
 	 *
 	 * @param server The request to create a HTTP request handler for.
 	 * @param input  The InputStream instance where the server has an incoming HTTP
@@ -59,17 +57,12 @@ public final class HTTPRequestHandlerFactory {
 			// Blame the client with a 400 Bad Request status
 			final HTTPResponseStatus status = HTTPResponseStatus.S400;
 
-			server.getLogger().log(Level.FINE, "A parsing error has occured while reading a HTTP request sent by a client, so trying to send a " + status.getStatus() + " response", exc);
+			server.getLogger().log(Level.FINE,
+				"A parsing error has occured while reading a HTTP request sent by a client, so trying to send a " +
+				status.getStatus() + " response", exc
+			);
 
-			try {
-				return new HTTPRequestStatusCodeHandler(null, null, status, server.getResourceReader());
-			} catch (final Exception exc2) {
-				server.getLogger().log(Level.SEVERE, UNCONTROLLED_EXCEPTION_ERROR, exc);
-				throw new IOException(exc2);
-			}
-		} catch (final Exception exc) {
-			server.getLogger().log(Level.SEVERE, UNCONTROLLED_EXCEPTION_ERROR, exc);
-			throw new IOException(exc);
+			return new HTTPRequestStatusCodeHandler(null, null, status, server.getStaticResourceReader());
 		}
 	}
 
@@ -89,9 +82,9 @@ public final class HTTPRequestHandlerFactory {
 		// to handle the request. The HTTPRequestStatusCodeHandler handler
 		// handles every request it receives
 		handlerChainBuilder
-			.setFirstHandler(HTTPGETRequestHTMLResourceHandler.class)
-			.setNextHandler(HTTPPOSTRequestHTMLResourceHandler.class)
-			.setNextHandler(HTTPDELETERequestHTMLResourceHandler.class)
+			.setFirstHandler(HTTPGETRequestHTMLWebResourceHandler.class)
+			.setNextHandler(HTTPPOSTRequestHTMLWebResourceHandler.class)
+			.setNextHandler(HTTPDELETERequestHTMLWebResourceHandler.class)
 			.setNextHandler(HTTPRequestWelcomePageHandler.class)
 			.setNextHandler(HTTPRequestStatusCodeHandler.class); // 400 Bad Request
 

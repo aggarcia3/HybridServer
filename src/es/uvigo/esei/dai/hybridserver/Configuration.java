@@ -17,7 +17,7 @@
  */
 package es.uvigo.esei.dai.hybridserver;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Configuration {
@@ -39,7 +39,7 @@ public class Configuration {
 			"hsdb",
 			"hsdbpass",
 			"jdbc:mysql://localhost:3306/hstestdb",
-			new ArrayList<ServerConfiguration>()
+			Collections.emptyList()
 		);
 	}
 	
@@ -58,10 +58,8 @@ public class Configuration {
 		this.dbUser = dbUser;
 		this.dbPassword = dbPassword;
 		this.dbURL = dbURL;
-		this.servers = servers;
+		this.servers = Collections.unmodifiableList(servers);
 	}
-
-
 
 	public int getHttpPort() {
 		return httpPort;

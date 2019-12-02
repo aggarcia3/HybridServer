@@ -20,8 +20,7 @@ import java.nio.charset.StandardCharsets;
  * input stream after each operation than {@link InputStreamReader}.
  *
  * @author Alejandro González García
- * @implNote This class is thread-safe if and only if the underlying input
- *           stream is thread safe.
+ * @implNote This class is not thread-safe.
  */
 public class HybridInputStream extends FilterInputStream {
 	private final CharsetDecoder charDecoder;

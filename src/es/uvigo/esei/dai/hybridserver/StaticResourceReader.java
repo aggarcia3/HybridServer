@@ -9,26 +9,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Contains logic to read resource files of the application. Resource files are
- * bundled with the application and are to be found in the classpath, like
- * libraries.
+ * Contains logic to read static resource files of the application. Resource
+ * files are bundled with the application and are to be found in the classpath,
+ * like libraries.
  *
  * @author Alejandro González García
  * @implNote The implementation of this class is thread-safe.
  */
-public final class ResourceReader {
+public final class StaticResourceReader {
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 
-	private final Map<String, String> loadedTextResources = new ConcurrentHashMap<>(3); // 3 is the number of resources
+	private final Map<String, String> loadedTextResources = new ConcurrentHashMap<>(5); // 5 is the number of resources
 	private final Logger logger;
 
 	/**
-	 * Creates a new resource reader for a server.
+	 * Creates a new static resource reader for a server.
 	 *
-	 * @param logger The logger responsible for logging the resource reader
+	 * @param logger The logger responsible for logging the static resource reader
 	 *               operations.
 	 */
-	public ResourceReader(final Logger logger) {
+	public StaticResourceReader(final Logger logger) {
 		this.logger = logger;
 	}
 

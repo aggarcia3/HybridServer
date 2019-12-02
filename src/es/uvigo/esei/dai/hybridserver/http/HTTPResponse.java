@@ -182,7 +182,73 @@ public final class HTTPResponse {
 	 *                               status and/or version, breaking the contract
 	 *                               mentioned above.
 	 */
+	public void printTo(final Writer writer) throws IOException {
+		print(writer, true);
+	}
+
+	/**
+	 * Writes out this HTTP response. For this operation to succeed, it is necessary
+	 * to set at least the status and the version of this HTTP response. The rest of
+	 * attributes are optional, but of course they will alter how the client
+	 * interprets the response. If a content length header (resource parameter) was
+	 * not specified, it will be generated automatically.
+	 *
+	 * @param writer The Writer to write this HTTP response to.
+	 * @throws IOException           If some I/O error occurs during the operation.
+	 * @throws IllegalStateException If this HTTP response was not associated a
+	 *                               status and/or version, breaking the contract
+	 *                               mentioned above.
+	 * @deprecated This method is just another way to call
+	 *             {@link HTTPResponse#printTo(Writer)}, with the difference that
+	 *             mandatory but test-breaking headers won't be added to the
+	 *             response. The normal, desired behavior of this method implies
+	 *             letting it be smart about what headers it should add or mangle,
+	 *             so the printed response is conforms to standards. This method is
+	 *             thus only provided for passing tests' assertions that don't
+	 *             expect the mangling done.
+	 */
+	@Deprecated
 	public void print(final Writer writer) throws IOException {
+		print(writer, false);
+	}
+
+	@Override
+	public String toString() {
+		final StringWriter writer = new StringWriter();
+
+		try {
+			print(writer, false); // Don't mangle so nobody complains about things they didn't add
+		} catch (final IOException exc) {
+			// This shouldn't happen with StringWriter
+			throw new AssertionError();
+		}
+
+		return writer.toString();
+	}
+
+	/**
+	 * Performs the actual writing of an HTTP response. It is done in this method to
+	 * allow more control about whether standard-mandatory, but test-breaking
+	 * headers will be added or not.
+	 *
+	 * @param writer                 The Writer to write this HTTP response to.
+	 * @param conformConnectionClose If true, then a Connection header with value
+	 *                               "close" will always be added to the resulting
+	 *                               response, no matter if it was explicitly added
+	 *                               or not. This is the behavior that RFC 2616
+	 *                               mandates for servers that don't support
+	 *                               persistent connections like this one, and this
+	 *                               behavior fixes connection resets sent to
+	 *                               clients that expect the connection to be kept
+	 *                               open. However, tests, for a good reason,
+	 *                               complain about headers being added without
+	 *                               their intervention.
+	 * @throws IOException           If some I/O error occurs during the operation.
+	 * @throws IllegalStateException If this HTTP response was not associated a
+	 *                               status and/or version.
+	 * @see HTTPResponse#print
+	 */
+	private void print(final Writer writer, final boolean conformConnectionClose) throws IOException {
 		if (status == null || version == null) {
 			throw new IllegalStateException("Can't print a HTTP response without status code and version");
 		}
@@ -200,6 +266,7 @@ public final class HTTPResponse {
 
 		// Write headers
 		int explicitContentLength = -1;
+		boolean explicitConnectionHeader = false;
 		for (final Map.Entry<String, String> parameterPair : parameters.entrySet()) {
 			final String key = parameterPair.getKey();
 			String value = parameterPair.getValue();
@@ -221,9 +288,22 @@ public final class HTTPResponse {
 				}
 			}
 
+			// Quietly replace any Connection header value by "close", as that's the value
+			// the server really supports
+			if (conformConnectionClose && key.equalsIgnoreCase(HTTPHeaders.CONNECTION.getHeader())) {
+				value = "close";
+				explicitConnectionHeader = true;
+			}
+
 			writer.write(key + ": ");
 			writer.write(value);
 			writer.write("\r\n");
+		}
+
+		// "HTTP/1.1 applications that do not support persistent connections MUST
+		// include the "close" connection option in every message."
+		if (conformConnectionClose && !explicitConnectionHeader) {
+			writer.write(HTTPHeaders.CONNECTION.getHeader() + ": close\r\n");
 		}
 
 		// If there is a non-empty message body, but we didn't receive
@@ -239,19 +319,5 @@ public final class HTTPResponse {
 		if (content != null && !content.isEmpty()) {
 			writer.write(content);
 		}
-	}
-
-	@Override
-	public String toString() {
-		final StringWriter writer = new StringWriter();
-
-		try {
-			print(writer);
-		} catch (final IOException e) {
-			// This shouldn't happen with StringWriter
-			throw new AssertionError();
-		}
-
-		return writer.toString();
 	}
 }

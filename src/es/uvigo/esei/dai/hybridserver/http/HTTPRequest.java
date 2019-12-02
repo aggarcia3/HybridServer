@@ -247,6 +247,24 @@ public final class HTTPRequest {
 		this.resourceParameters = Collections.unmodifiableMap(resourceParameters);
 		this.headerParameters = Collections.unmodifiableMap(headerParameters);
 
+		// Check whether the server supports the provided character set.
+		// This class and its dependencies support any character set, but other
+		// parts of the server do not.
+		// Although only UTF-8 support is required, as UTF-8 is backwards
+		// compatible with US-ASCII and ISO-8859-1, we accept those too
+		final Charset bodyCharset = getBodyCharset();
+		if (
+			bodyCharset != null &&
+			!StandardCharsets.UTF_8.equals(bodyCharset) &&
+			!StandardCharsets.US_ASCII.equals(bodyCharset) &&
+			!StandardCharsets.ISO_8859_1.equals(bodyCharset)
+		) {
+			throw new HTTPParseException(
+				"This server does not support the specified content character set",
+				new HTTPUnsupportedContentEncodingException(bodyCharset.displayName())
+			);
+		}
+
 		// Now comes the message body. After taking into account the simplifications
 		// made for this implementation, the standard defines two ways of getting its
 		// length (RFC 2616, section 4.4):
@@ -258,7 +276,6 @@ public final class HTTPRequest {
 		// Content-Length, we should respond with a 411 status code, because we can't
 		// compute the message length reliably. Note that the Content-Length header is
 		// only mandatory for requests with a body
-
 		if (messageBodyLength < 0 && input.available() > 0 && input.read() > -1) {
 			throw new HTTPParseException("Missing Content-Length header for HTTP request",
 				new HTTPMissingHeaderException(HTTPHeaders.CONTENT_LENGTH)
@@ -293,31 +310,28 @@ public final class HTTPRequest {
 		}
 
 		String textContent = null;
-		if (bodyBuffer != null) {
+		if (bodyBuffer != null && bodyCharset != null) {
 			final String contentType = getContentType();
-			final Charset bodyCharset = getBodyCharset();
 
 			switch (method) {
 				case POST:
 				case PUT: {
-					if (bodyCharset != null) {
-						// Parse body as resource parameters. The tests require us to follow
-						// the same format as for query strings in the URI. Also, use the
-						// return value to save iterating over the content again
-						final boolean urlEncoded = contentType.startsWith(MIME.FORM.getMime());
+					// Parse body as resource parameters. The tests require us to follow
+					// the same format as for query strings in the URI. Also, use the
+					// return value to save iterating over the content again
+					final boolean urlEncoded = contentType.startsWith(MIME.FORM.getMime());
 
-						assert bodyBuffer.hasArray() : "A byte buffer with a backing array is needed";
-						textContent = parseResourceParameters(
-							new String(bodyBuffer.array(), 0, bodyBuffer.limit(), bodyCharset),
-							resourceParameters,
-							urlEncoded
-						);
-					}
+					assert bodyBuffer.hasArray() : "A byte buffer with a backing array is needed";
+					textContent = parseResourceParameters(
+						new String(bodyBuffer.array(), 0, bodyBuffer.limit(), bodyCharset),
+						resourceParameters,
+						urlEncoded
+					);
 				}
 				default: // Do not parse body as resource parameters
 			}
 
-			if (textContent == null && bodyCharset != null) {
+			if (textContent == null) {
 				// Decode textual bodies depending on type
 				if (contentType.startsWith(MIME.FORM.getMime())) {
 					assert bodyBuffer.hasArray() : "A byte buffer with a backing array is needed";
@@ -481,7 +495,7 @@ public final class HTTPRequest {
 	 * @return The body of this request. If the client didn't send a request body,
 	 *         or it is not text (i.e. the {@link HTTPRequest#bodyIsText} method
 	 *         returns false), then a null value will be returned.
-	 * @see HTTPRequest#bodyIsText
+	 * @see HTTPRequest#contentIsText
 	 */
 	public String getContent() {
 		return textContent;
@@ -528,7 +542,8 @@ public final class HTTPRequest {
 
 		return
 			contentType.startsWith("text/") ||
-			contentType.startsWith("application/x-www-form-urlencoded")
+			contentType.startsWith(MIME.FORM.getMime()) ||
+			contentType.startsWith(MIME.APPLICATION_XML.getMime())
 		;
 	}
 

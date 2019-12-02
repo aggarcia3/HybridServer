@@ -1,12 +1,7 @@
 package es.uvigo.esei.dai.hybridserver;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 
 /**
  * Launches Hybrid Server, loading its configuration parameters.
@@ -14,6 +9,8 @@ import java.util.Properties;
  * @author Alejandro González García
  */
 public class Launcher {
+	private static final ConfigurationLoader<?> CONFIGURATION_LOADER = new PropertiesConfigurationLoader();
+
 	/**
 	 * Entry point of the application.
 	 *
@@ -21,20 +18,19 @@ public class Launcher {
 	 *             environment.
 	 */
 	public static void main(final String[] args) {
-		Properties configuration = null;
 		HybridServer server;
+		Configuration configuration = null;
 
 		if (args.length <= 1) {
 			// Read configuration file if its name is present in arguments
 			if (args.length > 0) {
-				try (final Reader configurationReader = new InputStreamReader(new FileInputStream(args[0]), StandardCharsets.UTF_8)) {
-					// Load the configuration properties from the reader
-					configuration = new Properties();
-					configuration.load(configurationReader);
-				} catch (final FileNotFoundException exc) {
-					printErrorMessageAndExit("Unable to open the file " + args[0] + " for reading. Does it exist, and is it a file?");
-				} catch (final IOException exc) {
-					printErrorMessageAndExit("An I/O error has occured while reading the configuration file");
+				try {
+					// Load the configuration parameters from the file
+					configuration = CONFIGURATION_LOADER.load(new File(args[0]));
+				} catch (final Exception exc) {
+					printErrorMessageAndExit(
+						"An error has occured while reading the configuration file: " + exc.getMessage()
+					);
 				}
 			}
 

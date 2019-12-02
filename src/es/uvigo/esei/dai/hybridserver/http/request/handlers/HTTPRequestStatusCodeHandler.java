@@ -1,21 +1,21 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
-import es.uvigo.esei.dai.hybridserver.ResourceReader;
+import es.uvigo.esei.dai.hybridserver.StaticResourceReader;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 
 /**
- * Always generates a static status code response, no matter what request is it
- * associated to. This handler is more useful when it is the last handler in a
- * responsibility chain, as it will handle any request passed to it, as a last
- * resort handler.
+ * A handler that always generates a static status code response, no matter what
+ * request is it associated to. This handler is more useful when it is the last
+ * handler in a responsibility chain, as it will handle any request passed to
+ * it, acting like a last resort handler.
  *
  * @author Alejandro González García
  */
 final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 	private final HTTPResponseStatus status;
-	private final ResourceReader serverResources;
+	private final StaticResourceReader staticResources;
 
 	/**
 	 * Constructs a new static HTTP status code handler that will generate a 400
@@ -41,15 +41,15 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 	 *                                 will be effectively ignored, as this handler
 	 *                                 handles every request.
 	 * @param status                   The status code of the response to generate.
-	 * @param serverResources          A resource reader of the server that is
-	 *                                 responsible for the request. This argument is
-	 *                                 only used if the request parameter is null,
-	 *                                 which happens when the request object
+	 * @param staticResources          A static resource reader of the server that
+	 *                                 is responsible for the request. This argument
+	 *                                 is only used if the request parameter is
+	 *                                 null, which happens when the request object
 	 *                                 couldn't be generated because of parsing
 	 *                                 errors.
 	 * @param IllegalArgumentException If {@code status} is null.
 	 */
-	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler, final HTTPResponseStatus status, final ResourceReader serverResources) {
+	public HTTPRequestStatusCodeHandler(final HTTPRequest request, final HTTPRequestHandler nextHandler, final HTTPResponseStatus status, final StaticResourceReader staticResources) {
 		super(request, nextHandler);
 
 		if (status == null) {
@@ -57,7 +57,7 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 		}
 
 		this.status = status;
-		this.serverResources = serverResources;
+		this.staticResources = staticResources;
 	}
 
 	@Override
@@ -67,10 +67,10 @@ final class HTTPRequestStatusCodeHandler extends HTTPRequestHandler {
 
 	@Override
 	public HTTPResponse getResponse() {
-		ResourceReader serverResources = this.serverResources;
+		StaticResourceReader serverResources = this.staticResources;
 
 		if (request != null) {
-			serverResources = request.getServer().getResourceReader();
+			serverResources = request.getServer().getStaticResourceReader();
 		}
 
 		return statusCodeResponse(serverResources, status);

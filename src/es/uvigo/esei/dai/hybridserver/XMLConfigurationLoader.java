@@ -18,11 +18,18 @@
 package es.uvigo.esei.dai.hybridserver;
 
 import java.io.File;
+import java.io.InputStream;
 
-public class XMLConfigurationLoader {
-	public Configuration load(File xmlFile)
-	throws Exception {
+public final class XMLConfigurationLoader implements ConfigurationLoader {
+	@Override
+	public Configuration load(final File file) throws Exception {
 		// Implementar en la semana 9. 
+		return null;
+	}
+
+	@Override
+	public Configuration load(final InputStream inputStream) throws Exception {
+		// TODO Auto-generated method stub
 		return null;
 	}
 }

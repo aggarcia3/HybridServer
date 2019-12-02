@@ -103,10 +103,10 @@ public class ReaderInputStreamAdapter extends InputStream {
 	 * character buffer, and then converts the characters in that buffer to their
 	 * byte representation, storing them in a byte buffer.
 	 * <p>
-	 * When this method finishes execution, a best effort has been made to fill the buffer,
-	 * waiting 
-	 * 
-	 * @throws IOException
+	 * When this method finishes execution, if the underlying reader didn't reach
+	 * EOF, then at least one byte is available for reading on the byte buffer.
+	 *
+	 * @throws IOException If an I/O error occured during the operation.
 	 */
 	private void fillByteBuffer() throws IOException {
 		CoderResult result;

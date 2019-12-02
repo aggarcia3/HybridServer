@@ -1,8 +1,9 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 
-import es.uvigo.esei.dai.hybridserver.ResourceReader;
+import es.uvigo.esei.dai.hybridserver.StaticResourceReader;
 import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
@@ -15,9 +16,6 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
  * handlers, it is <b>mandatory</b> that all the implementations of this class
  * define a constructor with two parameters: a {@link HTTPRequest} and a
  * {@link HTTPRequestHandler}, in that order.
- * <p>
- * Also, <b>no HTTP request handler can throw exceptions</b>, no matter if they
- * are checked or unchecked, during the handling of a request.
  *
  * @author Alejandro González García
  */
@@ -62,6 +60,7 @@ public abstract class HTTPRequestHandler {
 	 * response to send back to the client.
 	 *
 	 * @return The HTTP response to send back to the client.
+	 * @throws NoSuchElementException If no handler was found for this request.
 	 */
 	public final HTTPResponse handleRequest() {
 		HTTPResponse response;
@@ -93,7 +92,7 @@ public abstract class HTTPRequestHandler {
 					request.getServer().getLogger().log(Level.SEVERE, "No handler found for request. This is a programming error!");
 				}
 
-				throw new AssertionError("No handler found for a request: " + request);
+				throw new NoSuchElementException("No handler found for a request: " + request);
 			}
 		}
 
@@ -137,7 +136,7 @@ public abstract class HTTPRequestHandler {
 	 * @return The created HTTP response.
 	 * @throws IllegalArgumentException If {@code status} is null.
 	 */
-	static final HTTPResponse statusCodeResponse(final ResourceReader serverResources, final HTTPResponseStatus status) {
+	static final HTTPResponse statusCodeResponse(final StaticResourceReader serverResources, final HTTPResponseStatus status) {
 		if (status == null) {
 			throw new IllegalArgumentException("Can't create a status code response for a null status code");
 		}
@@ -146,7 +145,9 @@ public abstract class HTTPRequestHandler {
 			.setStatus(status)
 			.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
 
-		final String statusHtml = serverResources == null ? null : serverResources.readTextResourceToString("/es/uvigo/esei/dai/hybridserver/resources/status_code.htm");
+		final String statusHtml = serverResources == null ? null : serverResources.readTextResourceToString(
+			"/es/uvigo/esei/dai/hybridserver/resources/status_code.htm"
+		);
 
 		if (statusHtml != null) {
 			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
