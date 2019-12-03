@@ -64,6 +64,12 @@ final class HTTPRequestHandlerController implements AutoCloseable {
 			logger.log(Level.WARNING,
 				"An unexpected exception has occurred while handling an incoming request. No response can be sent to the client", exc
 			);
+
+			// "An Error is a subclass of Throwable that indicates serious problems that a
+			// reasonable application should not try to catch."
+			if (exc instanceof Error) {
+				throw exc;
+			}
 		}
 	}
 
