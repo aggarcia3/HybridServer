@@ -61,29 +61,30 @@ public final class XMLValidator {
 		}
 
 		// Instantiate schema source
-        final Source schemaSource = new StreamSource(new StringReader(xsd));
+		final Source schemaSource = new StreamSource(new StringReader(xsd));
 
 		// Instantiate the schema to use for validation
 		try {
 			final Schema schema = SchemaFactory.newInstance(
-			    XMLConstants.W3C_XML_SCHEMA_NS_URI // W3C XML Schema 1.0 is always supported
+				XMLConstants.W3C_XML_SCHEMA_NS_URI // W3C XML Schema 1.0 is always supported
 			).newSchema(schemaSource);
 
-	        // Now instantiate the SAX parser for that schema
-	        final SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
+			// Now instantiate the SAX parser for that schema
+			final SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
 			// "Note that XSLT requires namespace support. Attempting to transform an input
 			// source that is not generated with a namespace-aware parser may result in
 			// errors. Parsers can be made namespace aware by calling the
 			// SAXParserFactory.setNamespaceAware(boolean awareness) method."
-	        saxParserFactory.setNamespaceAware(true);
-	        // No need to set validating to true. That's only for DTDs:
-	        // "This processing will take effect even if the isValidating() method returns false."
-	        saxParserFactory.setSchema(schema);
+			saxParserFactory.setNamespaceAware(true);
+			// No need to set validating to true. That's only for DTDs:
+			// "This processing will take effect even if the isValidating() method returns
+			// false."
+			saxParserFactory.setSchema(schema);
 
-	        // Parser for the XML with the specified XSD
-	        final SAXParser saxParser = saxParserFactory.newSAXParser();
+			// Parser for the XML with the specified XSD
+			final SAXParser saxParser = saxParserFactory.newSAXParser();
 
-	        // Get the XML source document input and parse it
+			// Get the XML source document input and parse it
 			final InputSource xmlInput = new InputSource(new StringReader(xml));
 
 			saxParser.parse(xmlInput, validationHandler);
