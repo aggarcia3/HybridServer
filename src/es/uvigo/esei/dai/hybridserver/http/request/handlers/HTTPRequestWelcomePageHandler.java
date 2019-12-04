@@ -5,6 +5,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
+import es.uvigo.esei.dai.hybridserver.http.MIME;
 
 /**
  * Handles (generates) the appropiate response for welcome page HTTP requests.
@@ -43,7 +44,7 @@ final class HTTPRequestWelcomePageHandler extends HTTPRequestHandler {
 			return new HTTPResponse()
 				.setStatus(HTTPResponseStatus.S200)
 				.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-				.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+				.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 				.setContent(html);
 		} else {

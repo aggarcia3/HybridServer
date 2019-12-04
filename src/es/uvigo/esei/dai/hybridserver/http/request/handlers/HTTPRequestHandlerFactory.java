@@ -85,6 +85,15 @@ public final class HTTPRequestHandlerFactory {
 			.setFirstHandler(HTTPGETRequestHTMLWebResourceHandler.class)
 			.setNextHandler(HTTPPOSTRequestHTMLWebResourceHandler.class)
 			.setNextHandler(HTTPDELETERequestHTMLWebResourceHandler.class)
+			.setNextHandler(HTTPGETRequestXMLWebResourceHandler.class)
+			.setNextHandler(HTTPPOSTRequestXMLWebResourceHandler.class)
+			.setNextHandler(HTTPDELETERequestXMLWebResourceHandler.class)
+			.setNextHandler(HTTPGETRequestXSDWebResourceHandler.class)
+			.setNextHandler(HTTPPOSTRequestXSDWebResourceHandler.class)
+			.setNextHandler(HTTPDELETERequestXSDWebResourceHandler.class)
+			.setNextHandler(HTTPGETRequestXSLTWebResourceHandler.class)
+			.setNextHandler(HTTPPOSTRequestXSLTWebResourceHandler.class)
+			.setNextHandler(HTTPDELETERequestXSLTWebResourceHandler.class)
 			.setNextHandler(HTTPRequestWelcomePageHandler.class)
 			.setNextHandler(HTTPRequestStatusCodeHandler.class); // 400 Bad Request
 

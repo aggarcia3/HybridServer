@@ -20,7 +20,8 @@ package es.uvigo.esei.dai.hybridserver.http;
 public enum MIME {
 	APPLICATION_XML("application/xml"),
 	FORM("application/x-www-form-urlencoded"),
-	TEXT_HTML("text/html");
+	TEXT_HTML("text/html"),
+	TEXT_PLAIN("text/plain");
 
 	private String mime;
 	

@@ -8,6 +8,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPHeaders;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
+import es.uvigo.esei.dai.hybridserver.http.MIME;
 
 /**
  * Defines the contract that any HTTP request handler must obey.
@@ -150,7 +151,7 @@ public abstract class HTTPRequestHandler {
 		);
 
 		if (statusHtml != null) {
-			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 				.setContent(statusHtml
 					.replace("-- STATUS CODE --", Integer.toString(status.getCode()))

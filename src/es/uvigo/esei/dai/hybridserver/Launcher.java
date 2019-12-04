@@ -8,8 +8,8 @@ import java.io.IOException;
  *
  * @author Alejandro González García
  */
-public class Launcher {
-	private static final ConfigurationLoader<?> CONFIGURATION_LOADER = new PropertiesConfigurationLoader();
+public final class Launcher {
+	private static final ConfigurationLoader<?> CONFIGURATION_LOADER = new XMLConfigurationLoader();
 
 	/**
 	 * Entry point of the application.

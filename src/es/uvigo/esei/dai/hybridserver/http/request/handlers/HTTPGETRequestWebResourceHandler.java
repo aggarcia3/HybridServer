@@ -66,7 +66,7 @@ abstract class HTTPGETRequestWebResourceHandler<T extends WebResource<T>> extend
 							new HTTPResponse()
 								.setStatus(HTTPResponseStatus.S200)
 								.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-								.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), requestedWebResource.getMimeType() + "; charset=UTF-8")
+								.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), requestedWebResource.getMimeType())
 								.setContent(requestedWebResource.getAttribute(WebResource.CONTENT_ATTRIBUTE))
 						);
 					} else {

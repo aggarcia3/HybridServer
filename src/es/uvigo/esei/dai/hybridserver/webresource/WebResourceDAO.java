@@ -78,7 +78,7 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 
 	/**
 	 * Returns a {@link Collection} view of the web resources contained by this data
-	 * source. The collection is a read-only collections of the web resources
+	 * source. The collection is a read-only collection of the web resources
 	 * contained in the DAO, retrieved using weakly-consistent semantics.
 	 *
 	 * @return A collection of the web resources contained in this DAO.

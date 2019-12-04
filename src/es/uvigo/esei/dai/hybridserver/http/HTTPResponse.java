@@ -295,6 +295,14 @@ public final class HTTPResponse {
 				explicitConnectionHeader = true;
 			}
 
+			if (key.equalsIgnoreCase(HTTPHeaders.CONTENT_TYPE.getHeader())) {
+				// Conceal insufficient information sent to the client for decoding text/plain resources.
+				// Other supported media types provide mechanisms to deduce the encoding
+				if (value.startsWith(MIME.TEXT_PLAIN.getMime()) && !value.contains("; charset=")) {
+					value += "; charset=UTF-8";
+				}
+			}
+
 			writer.write(key + ": ");
 			writer.write(value);
 			writer.write("\r\n");

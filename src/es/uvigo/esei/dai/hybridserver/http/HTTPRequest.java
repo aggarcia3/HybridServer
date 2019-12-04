@@ -673,8 +673,8 @@ public final class HTTPRequest {
 			}
 
 			// If that failed, try to get it from the Content-Encoding header, which is
-			// a strange place to look at for determining this, but some clients
-			// put it there
+			// a strange, non-standard place to look at for determining this, but some clients
+			// put it there. See: https://stackoverflow.com/a/40442155/9366153
 			if (
 				bodyCharset == null &&
 				headerParameters.containsKey(HTTPHeaders.CONTENT_ENCODING.getHeader())

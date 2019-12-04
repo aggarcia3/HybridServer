@@ -10,6 +10,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
+import es.uvigo.esei.dai.hybridserver.http.MIME;
 import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
 import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAO;
 
@@ -67,7 +68,7 @@ abstract class HTTPDELETERequestWebResourceHandler<T extends WebResource<T>> ext
 								return new HTTPResponse()
 									.setStatus(HTTPResponseStatus.S200)
 									.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-									.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+									.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 									.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 									.setContent(html);
 							} else {

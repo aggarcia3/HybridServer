@@ -141,15 +141,6 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Returns the user-friendly name of this server.
-	 *
-	 * @return The user-friendly name of this server. Currently, "Hybrid Server".
-	 */
-	public String getName() {
-		return NAME;
-	}
-
-	/**
 	 * Gets the configuration that this server is using.
 	 *
 	 * @return The aforementioned configuration.
@@ -220,7 +211,7 @@ public final class HybridServer {
 	 * method has no effect.
 	 */
 	public void start() {
-		System.out.println("-- WELCOME TO " + getName().toUpperCase() + " --");
+		System.out.println("-- WELCOME TO " + NAME.toUpperCase() + " --");
 
 		final HybridServerThread serverThread = this.serverThread.updateAndGet(
 			(final HybridServerThread thread) -> {

@@ -65,7 +65,9 @@ public class ReaderInputStreamAdapter extends InputStream {
 
 		this.byteBuffer = ByteBuffer.allocate(
 			(int) Math.ceil(CHAR_BUFFER_SIZE * charEncoder.maxBytesPerChar())
-		).limit(0); // Limit 0 so it has no remaining elements on the first read
+		);
+		// Limit to 0 so it has no remaining elements on the first read
+		byteBuffer.limit(0);
 	}
 
 	/**

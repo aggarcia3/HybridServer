@@ -10,6 +10,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
+import es.uvigo.esei.dai.hybridserver.http.MIME;
 import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
 
 /**
@@ -75,7 +76,7 @@ abstract class HTTPPOSTRequestWebResourceHandler<T extends WebResource<T>> exten
 								response = new HTTPResponse()
 									.setStatus(HTTPResponseStatus.S200)
 									.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-									.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+									.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 									.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 									.setContent(html
 										.replace("-- RESOURCE NAME --", resourceName)

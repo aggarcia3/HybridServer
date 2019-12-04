@@ -17,67 +17,92 @@
  */
 package es.uvigo.esei.dai.hybridserver;
 
-public class ServerConfiguration {
-	private String name;
-	private String wsdl;
-	private String namespace;
-	private String service;
-	private String httpAddress;
-	
-	public ServerConfiguration() {
-	}
-	
-	public ServerConfiguration(
-		String name,
-		String wsdl,
-		String namespace,
-		String service,
-		String httpAddress
-	) {
-		this.name = name;
-		this.wsdl = wsdl;
-		this.namespace = namespace;
-		this.service = service;
-		this.httpAddress = httpAddress;
-	}
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlRootElement;
 
-	public String getName() {
+/**
+ * Contains the configuration of a remote Hybrid Server, used to establish
+ * communication with it.
+ */
+@XmlRootElement(name = "server")
+public final class ServerConfiguration {
+	private static final String INCOMPLETE_UNMARSHALLING_ERROR = "A server configuration setting was not successfully unmarshalled";
+
+	@XmlAttribute
+	private String name = null;
+	@XmlAttribute
+	private String wsdl = null;
+	@XmlAttribute
+	private String namespace = null;
+	@XmlAttribute
+	private String service = null;
+	@XmlAttribute
+	private String httpAddress = null;
+
+	/**
+	 * Returns the name of this remote Hybrid Server, unique among the known remote
+	 * servers.
+	 *
+	 * @return The described server name.
+	 */
+	public final String getName() {
+		if (name == null) {
+			throw new AssertionError(INCOMPLETE_UNMARSHALLING_ERROR);
+		}
+
 		return name;
 	}
 
-	public void setName(String name) {
-		this.name = name;
-	}
+	/**
+	 * Returns the WSDL endpoint of the remote Hybrid Server.
+	 *
+	 * @return The described endpoint.
+	 */
+	public final String getWsdl() {
+		if (wsdl == null) {
+			throw new AssertionError(INCOMPLETE_UNMARSHALLING_ERROR);
+		}
 
-	public String getWsdl() {
 		return wsdl;
 	}
 
-	public void setWsdl(String wsdl) {
-		this.wsdl = wsdl;
-	}
+	/**
+	 * Returns the namespace of the remote Hybrid Server web service.
+	 * 
+	 * @return The described namespace.
+	 */
+	public final String getNamespace() {
+		if (namespace == null) {
+			throw new AssertionError(INCOMPLETE_UNMARSHALLING_ERROR);
+		}
 
-	public String getNamespace() {
 		return namespace;
 	}
 
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
+	/**
+	 * Retrieves the service name of the remote Hybrid Server web service.
+	 *
+	 * @return The aforementioned service name.
+	 */
+	public final String getService() {
+		if (service == null) {
+			throw new AssertionError(INCOMPLETE_UNMARSHALLING_ERROR);
+		}
 
-	public String getService() {
 		return service;
 	}
 
-	public void setService(String service) {
-		this.service = service;
-	}
+	/**
+	 * Returns the base HTTP address where the remote Hybrid Server serves web
+	 * resources.
+	 *
+	 * @return The aforementioned base HTTP address.
+	 */
+	public final String getHttpAddress() {
+		if (httpAddress == null) {
+			throw new AssertionError(INCOMPLETE_UNMARSHALLING_ERROR);
+		}
 
-	public String getHttpAddress() {
 		return httpAddress;
-	}
-
-	public void setHttpAddress(String httpAddress) {
-		this.httpAddress = httpAddress;
 	}
 }

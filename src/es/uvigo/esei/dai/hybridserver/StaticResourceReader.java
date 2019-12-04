@@ -19,17 +19,25 @@ import java.util.logging.Logger;
 public final class StaticResourceReader {
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 
-	private final Map<String, String> loadedTextResources = new ConcurrentHashMap<>(5); // 5 is the number of resources
+	private static final Map<String, String> LOADED_RESOURCES = new ConcurrentHashMap<>(7); // 7 is the number of resources
 	private final Logger logger;
 
 	/**
 	 * Creates a new static resource reader for a server.
 	 *
 	 * @param logger The logger responsible for logging the static resource reader
-	 *               operations.
+	 *               operations. It might be {@code null}.
 	 */
 	public StaticResourceReader(final Logger logger) {
 		this.logger = logger;
+	}
+
+	/**
+	 * Creates a new static resource reader for a server, without any logger
+	 * associated to it.
+	 */
+	public StaticResourceReader() {
+		this(null);
 	}
 
 	/**
@@ -42,14 +50,14 @@ public final class StaticResourceReader {
 	 *         won't.
 	 */
 	public String readTextResourceToString(final String name) {
-		logger.log(Level.FINE, "Serving resource {0} from the cache", name);
+		logIfLoggerAvailable(Level.FINE, "Serving resource {0} from the cache", name);
 
-		return loadedTextResources.computeIfAbsent(name, (String resource) -> {
-			logger.log(Level.FINE, "Resource not in cache. Reading resource {0} from storage", name);
+		return LOADED_RESOURCES.computeIfAbsent(name, (final String resource) -> {
+			logIfLoggerAvailable(Level.FINE, "Resource not in cache. Reading resource {0} from storage", resource);
 
 			// Read the resource from the input stream
 			long readStart = System.currentTimeMillis();
-			try (final Reader r = new InputStreamReader(HybridServer.class.getResourceAsStream(name), StandardCharsets.UTF_8)) {
+			try (final Reader r = new InputStreamReader(getClass().getResourceAsStream(resource), StandardCharsets.UTF_8)) {
 				final StringBuilder sb = new StringBuilder();
 				final char[] buf = new char[TRANSFER_BUFFER_SIZE];
 
@@ -60,7 +68,7 @@ public final class StaticResourceReader {
 				}
 
 				final String toret = sb.toString();
-				logger.log(Level.FINE,
+				logIfLoggerAvailable(Level.FINE,
 					"Done reading resource {0} ({1} ms, {2} characters)",
 					new Object[] {
 						name,
@@ -70,9 +78,23 @@ public final class StaticResourceReader {
 
 				return toret;
 			} catch (final Exception exc) {
-				logger.log(Level.SEVERE, "Couldn't get the resource {0}. Returning null string", name);
+				logIfLoggerAvailable(Level.SEVERE, "Couldn't get the resource {0}. Returning null string", resource);
 				return null;
 			}
 		});
+	}
+
+	/**
+	 * Writes a message to the logger associated with this resource reader, if there
+	 * is one.
+	 *
+	 * @param level  The level of the message.
+	 * @param msg    The message template to print.
+	 * @param params Any parameters for the message template.
+	 */
+	private final void logIfLoggerAvailable(final Level level, final String msg, final Object... params) {
+		if (logger != null) {
+			logger.log(level, msg, params);
+		}
 	}
 }

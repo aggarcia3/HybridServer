@@ -17,103 +17,384 @@
  */
 package es.uvigo.esei.dai.hybridserver;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-public class Configuration {
-	private int httpPort;
-	private int numClients;
-	private String webServiceURL;
-	
-	private String dbUser;
-	private String dbPassword;
-	private String dbURL;
-	
-	private List<ServerConfiguration> servers;
-	
-	public Configuration() {
-		this(
-			8888,
-			50,
-			null,
-			"hsdb",
-			"hsdbpass",
-			"jdbc:mysql://localhost:3306/hstestdb",
-			Collections.emptyList()
-		);
-	}
-	
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElements;
+import javax.xml.bind.annotation.XmlRootElement;
+
+/**
+ * Represents the configuration parameters of a Hybrid Server.
+ */
+@XmlRootElement(name = "configuration")
+public final class Configuration {
+	@XmlElement(name = "connections")
+	private ConnectionsConfiguration connectionsConfiguration = new ConnectionsConfiguration();
+	@XmlElement(name = "database")
+	private DatabaseConfiguration databaseConfiguration = new DatabaseConfiguration();
+	@XmlElement(name = "servers")
+	private ServersConfiguration serversConfiguration = new ServersConfiguration();
+
+	/**
+	 * Initializes a Hybrid Server configuration object with the default
+	 * configuration parameters.
+	 */
+	public Configuration() {}
+
+	/**
+	 * Initializes a Hybrid Server configuration object with the provided
+	 * configuration parameters.
+	 *
+	 * @param httpPort      The TCP port the Hybrid Server will listen for HTTP
+	 *                      requests on.
+	 * @param numClients    A number that estimates the maximum number of concurrent
+	 *                      clients this server will be able to handle. It is used
+	 *                      to initialize a worker thread pool with this many
+	 *                      threads.
+	 * @param webServiceURL The endpoint where this Hybrid Server will publish a web
+	 *                      service for communication with others.
+	 * @param dbUser        The user to specify when logging in the database.
+	 * @param dbPassword    The password of the user to specify when logging in the
+	 *                      database.
+	 * @param dbURI         The JDBC URI of the relational database to connect to.
+	 * @param servers       A list of remote Hybrid Server contact information.
+	 * @throws IllegalArgumentException If any parameter is {@code null}, except
+	 *                                  {@code webServiceURL}, or semantically
+	 *                                  invalid.
+	 */
 	public Configuration(
-		int httpPort,
-		int numClients,
-		String webServiceURL,
-		String dbUser,
-		String dbPassword,
-		String dbURL,
-		List<ServerConfiguration> servers
+		final int httpPort,
+		final int numClients,
+		final String webServiceURL,
+		final String dbUser,
+		final String dbPassword,
+		final String dbURI,
+		final List<ServerConfiguration> servers
 	) {
-		this.httpPort = httpPort;
-		this.numClients = numClients;
-		this.webServiceURL = webServiceURL;
-		this.dbUser = dbUser;
-		this.dbPassword = dbPassword;
-		this.dbURL = dbURL;
-		this.servers = Collections.unmodifiableList(servers);
+		connectionsConfiguration.setHttpPort(httpPort);
+		connectionsConfiguration.setNumClients(numClients);
+		connectionsConfiguration.setWebServiceURL(webServiceURL);
+		databaseConfiguration.setDbUser(dbUser);
+		databaseConfiguration.setDbPassword(dbPassword);
+		databaseConfiguration.setDbURI(dbURI);
+		serversConfiguration.setServers(servers);
 	}
 
-	public int getHttpPort() {
-		return httpPort;
+	/**
+	 * Retrieves the HTTP TCP port the Hybrid Server will listen on for incoming web
+	 * resource requests.
+	 *
+	 * @return The described TCP port.
+	 */
+	public final int getHttpPort() {
+		return connectionsConfiguration.getHttpPort();
 	}
 
-	public void setHttpPort(int httpPort) {
-		this.httpPort = httpPort;
+	/**
+	 * Returns the maximum number of concurrent clients this server will be able to
+	 * handle.
+	 *
+	 * @return The aforementioned number.
+	 */
+	public final int getNumClients() {
+		return connectionsConfiguration.getNumClients();
 	}
 
-	public int getNumClients() {
-		return numClients;
+	/**
+	 * Returns the endpoint where this Hybrid Server will publish a web service for
+	 * communication with others.
+	 *
+	 * @return The described endpoint.
+	 */
+	public final String getWebServiceURL() {
+		return connectionsConfiguration.getWebServiceURL();
 	}
 
-	public void setNumClients(int numClients) {
-		this.numClients = numClients;
+	/**
+	 * Returns the user to specify when logging in the database.
+	 *
+	 * @return The aforementioned user.
+	 */
+	public final String getDbUser() {
+		return databaseConfiguration.getDbUser();
 	}
 
-	public String getWebServiceURL() {
-		return webServiceURL;
+	/**
+	 * Returns the password of the user to specify when logging in the database.
+	 *
+	 * @return The described password.
+	 */
+	public final String getDbPassword() {
+		return databaseConfiguration.getDbPassword();
 	}
 
-	public void setWebServiceURL(String webServiceURL) {
-		this.webServiceURL = webServiceURL;
+	/**
+	 * Retrieves the JDBC URI of the relational database to connect to.
+	 *
+	 * @return The described JDBC URI.
+	 */
+	public final String getDbURL() {
+		return databaseConfiguration.getDbURI();
 	}
 
-	public String getDbUser() {
-		return dbUser;
+	/**
+	 * Returns the list of remote Hybrid Servers this Hybrid Server knows, providing
+	 * their contact information.
+	 *
+	 * @return The aforementioned list.
+	 */
+	public final List<ServerConfiguration> getServers() {
+		return serversConfiguration.getServers();
 	}
 
-	public void setDbUser(String dbUser) {
-		this.dbUser = dbUser;
+	// Using nested static classes should be safe.
+	// The Java 8's Javadoc says that classes annotated with @XmlRootElement should
+	// be top level classes, but the JAXB 2.0 specification tells otherwise for
+	// @XmlType:
+	// "a class must be either be a top level class or a nested static class"
+	// - https://download.oracle.com/otn-pub/jcp/jaxb-2.0-fr-oth-JSpec/jaxb-2_0-fr-spec.pdf
+	// Also, the specification for @XmlRootElement says nothing about what type of
+	// classes it accepts.
+	// If something breaks, just move these classes to another Java file, with
+	// package-private visibility or greater
+
+	/**
+	 * Represents a Hybrid Server configuration fragment, which contains information
+	 * relative to the network services a server will provide.
+	 *
+	 * @author Alejandro González García
+	 */
+	@XmlRootElement(name = "connections")
+	private static final class ConnectionsConfiguration {
+		@XmlElement(name = "http")
+		private int httpPort = 8888;
+		@XmlElement
+		private int numClients = 50;
+		@XmlElement(name = "webservice")
+		private String webServiceURL = null;
+
+		/**
+		 * Retrieves the HTTP TCP port the Hybrid Server will listen on for incoming web
+		 * resource requests.
+		 *
+		 * @return The described TCP port.
+		 */
+		public final int getHttpPort() {
+			return httpPort;
+		}
+
+		/**
+		 * Sets the HTTP TCP port the Hybrid Server will listen on for incoming web
+		 * resource requests.
+		 *
+		 * @param httpPort The aforementioned port.
+		 * @throws IllegalArgumentException If the port is not in the interval [1,
+		 *                                  65535].
+		 */
+		final void setHttpPort(final int httpPort) {
+			if (httpPort < 1 || httpPort > 65535) {
+				throw new IllegalArgumentException("The HTTP port must be between 0 and 65535");
+			}
+
+			this.httpPort = httpPort;
+		}
+
+		/**
+		 * Returns the maximum number of concurrent clients this server will be able to
+		 * handle.
+		 *
+		 * @return The aforementioned number.
+		 */
+		public final int getNumClients() {
+			return numClients;
+		}
+
+		/**
+		 * Sets the maximum number of concurrent clients this server will be able to
+		 * handle.
+		 *
+		 * @param numClients The described number.
+		 * @throws IllegalArgumentException If {@code numClients} is less than 1.
+		 */
+		final void setNumClients(final int numClients) {
+			if (numClients < 1) {
+				throw new IllegalArgumentException("The number of clients must not be less than 1");
+			}
+
+			this.numClients = numClients;
+		}
+
+		/**
+		 * Returns the endpoint where this Hybrid Server will publish a web service for
+		 * communication with others.
+		 *
+		 * @return The described endpoint.
+		 */
+		public final String getWebServiceURL() {
+			return webServiceURL;
+		}
+
+		/**
+		 * Establishes the endpoint where this Hybrid Server will publish a web service
+		 * for communication with others.
+		 *
+		 * @param webServiceURL The aforementioned endpoint.
+		 * @throws IllegalArgumentException If {@code webServiceURL} is not an URL, or
+		 *                                  it is not a HTTP URL. It can be {@code null}.
+		 */
+		final void setWebServiceURL(final String webServiceURL) {
+			try {
+				if (webServiceURL != null) {
+					final URL parsedUrl = new URL(webServiceURL);
+
+					if (!parsedUrl.getProtocol().matches("^http$")) {
+						throw new MalformedURLException();
+					}
+				}
+			} catch (final MalformedURLException exc) {
+				throw new IllegalArgumentException("The specified web service URL is not a HTTP URL");
+			}
+
+			this.webServiceURL = webServiceURL;
+		}
 	}
 
-	public String getDbPassword() {
-		return dbPassword;
+	/**
+	 * Represents a Hybrid Server configuration fragment, which contains information
+	 * relative to the database the server will use for instantiating its DAOs.
+	 *
+	 * @author Alejandro González García
+	 */
+	@XmlRootElement(name = "database")
+	private static final class DatabaseConfiguration {
+		@XmlElement(name = "user")
+		private String dbUser = "hsdb";
+		@XmlElement(name = "password")
+		private String dbPassword = "hsdbpass";
+		@XmlElement(name = "url")
+		private String dbURI = "jdbc:mysql://localhost:3306/hstestdb";
+
+		/**
+		 * Returns the user to specify when logging in the database.
+		 *
+		 * @return The aforementioned user.
+		 */
+		public final String getDbUser() {
+			return dbUser;
+		}
+
+		/**
+		 * Sets the user to specify when logging in the database.
+		 *
+		 * @param dbUser The aforementioned user.
+		 * @throws IllegalArgumentException If {@code dbUser} is {@code null}.
+		 */
+		final void setDbUser(final String dbUser) {
+			if (dbUser == null) {
+				throw new IllegalArgumentException("The database user can't be null");
+			}
+
+			this.dbUser = dbUser;
+		}
+
+		/**
+		 * Returns the password of the user to specify when logging in the database.
+		 *
+		 * @return The described password.
+		 */
+		public final String getDbPassword() {
+			return dbPassword;
+		}
+
+		/**
+		 * Sets the password of the user to specify when logging in the database.
+		 *
+		 * @param dbPassword The described password.
+		 * @throws IllegalArgumentException If {@code dbPassword} is {@code null}.
+		 */
+		final void setDbPassword(final String dbPassword) {
+			if (dbPassword == null) {
+				throw new IllegalArgumentException("The database password can't be null");
+			}
+
+			this.dbPassword = dbPassword;
+		}
+
+		/**
+		 * Retrieves the JDBC URI of the relational database to connect to.
+		 *
+		 * @return The described JDBC URI.
+		 */
+		public final String getDbURI() {
+			return dbURI;
+		}
+
+		/**
+		 * Sets the JDBC URI of the relational database to connect to.
+		 *
+		 * @param dbURI The described JDBC URI.
+		 * @throws IllegalArgumentException If {@code dbURI} is not an URI, or it is not
+		 *                                  a JDBC URI.
+		 */
+		final void setDbURI(final String dbURI) {
+			try {
+				if (dbURI == null) {
+					throw new URISyntaxException("", "");
+				}
+
+				final URI parsedUri = new URI(dbURI);
+
+				if (!parsedUri.getScheme().matches("^jdbc$")) {
+					throw new URISyntaxException("", "");
+				}
+			} catch (final URISyntaxException exc) {
+				throw new IllegalArgumentException("The specified database URI is null or not a JDBC URI");
+			}
+
+			this.dbURI = dbURI;
+		}
 	}
 
-	public void setDbPassword(String dbPassword) {
-		this.dbPassword = dbPassword;
-	}
+	/**
+	 * Represents a Hybrid Server configuration fragment, which contains information
+	 * relative to the remote Hybrid Servers that this server will try to
+	 * communicate with.
+	 *
+	 * @author Alejandro González García
+	 */
+	@XmlRootElement(name = "servers")
+	private static final class ServersConfiguration {
+		@XmlElements({ @XmlElement(name = "server") })
+		private List<ServerConfiguration> servers = null;
 
-	public String getDbURL() {
-		return dbURL;
-	}
+		/**
+		 * Returns the list of remote Hybrid Servers this Hybrid Server knows, providing
+		 * their contact information.
+		 *
+		 * @return The described list of server contact information.
+		 */
+		public final List<ServerConfiguration> getServers() {
+			return servers == null ? Collections.emptyList() : Collections.unmodifiableList(servers);
+		}
 
-	public void setDbURL(String dbURL) {
-		this.dbURL = dbURL;
-	}
+		/**
+		 * Sets the list of remote Hybrid Servers this Hybrid Server knows.
+		 *
+		 * @param servers The described list of server contact information.
+		 * @throws IllegalArgumentException If {@code servers} is {@code null}, or
+		 *                                  contains a {@code null} element.
+		 */
+		final void setServers(final List<ServerConfiguration> servers) {
+			if (servers == null || servers.contains(null)) {
+				throw new IllegalArgumentException("The server list is null, or a server in the list is null");
+			}
 
-	public List<ServerConfiguration> getServers() {
-		return servers;
-	}
-
-	public void setServers(List<ServerConfiguration> servers) {
-		this.servers = servers;
+			this.servers = servers;
+		}
 	}
 }

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML Schema for validating Hybrid Server configuration, by Alejandro González García -->
+<schema
+	xmlns="http://www.w3.org/2001/XMLSchema"
+	xmlns:tns="http://www.esei.uvigo.es/dai/hybridserver"
+	targetNamespace="http://www.esei.uvigo.es/dai/hybridserver"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified"
+>
+	<!-- General document layout -->
+	<element name="configuration">
+		<complexType mixed="false">
+			<all>
+				<element name="connections" type="tns:connections"/>
+				<element name="database" type="tns:database"/>
+				<element name="servers" type="tns:servers" minOccurs="0">
+					<!-- Server names must be unique -->
+					<key name="serverKey">
+						<selector xpath="tns:server"/>
+						<field xpath="@name"/>
+					</key>
+				</element>
+			</all>
+		</complexType>
+	</element>
+
+	<!-- High level types -->
+	<complexType name="connections" mixed="false">
+		<all>
+			<element name="http" type="tns:portNumber"/>
+			<element name="webservice" type="tns:httpUrl" minOccurs="0"/>
+			<element name="numClients" type="positiveInteger"/>
+		</all>
+	</complexType>
+
+	<complexType name="database" mixed="false">
+		<all>
+			<!-- User and password might be empty because some RDBMS don't require it -->
+			<element name="user" type="string"/>
+			<element name="password" type="string"/>
+			<element name="url" type="tns:jdbcUrl"/>
+		</all>
+	</complexType>
+
+	<complexType name="servers" mixed="false">
+		<sequence maxOccurs="unbounded">
+			<element name="server" type="tns:server"/>
+		</sequence>
+	</complexType>
+
+	<!-- Lower level types -->
+	<complexType name="server" mixed="false">
+		<attribute name="name" type="tns:notEmptyString"/>
+		<attribute name="wsdl" type="tns:httpUrl"/>
+		<attribute name="namespace" type="tns:httpUrl"/>
+		<attribute name="service" type="tns:notEmptyString"/>
+		<attribute name="httpAddress" type="tns:httpUrl"/>
+	</complexType>
+
+	<simpleType name="portNumber">
+		<restriction base="positiveInteger">
+			<!-- No leading zeros, no + symbol -->
+			<pattern value="[1-9][0-9]*"/>
+			<maxInclusive value="65535"/>
+		</restriction>
+	</simpleType>
+
+	<simpleType name="httpUrl">
+		<restriction base="anyURI">
+			<pattern value="http://.+"/>
+		</restriction>
+	</simpleType>
+
+	<simpleType name="jdbcUrl">
+		<restriction base="anyURI">
+			<pattern value="jdbc:.+"/>
+		</restriction>
+	</simpleType>
+
+	<simpleType name="notEmptyString">
+		<restriction base="string">
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+</schema>
