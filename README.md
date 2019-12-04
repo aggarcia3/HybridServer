@@ -3,7 +3,7 @@ Proyecto de la asignatura DAI del grado en Ingeniería Informática por la ESEI,
 # Autor
 *  González García, Alejandro - 45149510G.
 # Comentarios
-*  El desarrollador emplea OpenJDK 13 en su estación de trabajo, que implementa una especificación de Java más reciente que la versión 1.8. Algunos cambios introducidos en versiones de Java posteriores pueden introducir incompatibilidades que no hemos detectado, aunque se ha tenido cuidado en no incurrir en ellos.
+*  El proyecto está diseñado para ser ejecutado exclusivamente en Java 8. Esto es debido a que usa JAXB, una tecnología marcada como obsoleta y eliminada en posteriores versiones de Java por razones de mantenibilidad y discrepancias con Java EE. Aunque [https://stackoverflow.com/questions/52502189/java-11-package-javax-xml-bind-does-not-exist](es posible restaurar una versión actualizada de ella en versiones más recientes con librerías externas), ello no se ha hecho para no quebrantar la condición de que no se pueden usar librerías externas.
 *  Para ejecutar los tests que dependen de un SGBD se ha empleado MySQL 5.1.30, obtenido desde https://cdn.mysql.com/archives/mysql-5.1/mysql-noinstall-5.1.30-winx64.zip.
 *  El servidor utiliza la jerarquía de clases Logger incluida en Java para mostrar información de diagnóstico a un destino de datos de registro. La visualización de estos mensajes puede ser útil para detectar problemas y ganar perspectiva sobre la interacción entre los objetos que componen al sistema. Para mostrar información de depuración extendida, puede crearse un fichero `logging.properties` con la siguiente configuración:
 ```
