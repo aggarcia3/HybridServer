@@ -201,20 +201,6 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 	}
 
 	@Override
-	public void clear() throws IOException {
-		try {
-			// Try to get a connection to the DB if needed
-			final Connection dbConnection = connectToDbIfDeadOrGet();
-
-			try (final Statement statement = dbConnection.createStatement()) {
-				statement.executeUpdate("DELETE FROM " + tableName + ";");
-			}
-		} catch (final SQLException exc) {
-			throw handleSQLException(exc);
-		}
-	}
-
-	@Override
 	public Set<UUID> uuidSet() throws IOException {
 		final Set<UUID> uuidSet = new HashSet<>();
 

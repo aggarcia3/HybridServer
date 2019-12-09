@@ -52,11 +52,6 @@ final class MemoryWebResourceDAO<T extends WebResource<T>> implements WebResourc
 	}
 
 	@Override
-	public void clear() throws IOException {
-		webResources.clear();
-	}
-
-	@Override
 	public Set<UUID> uuidSet() throws IOException {
 		final Set<UUID> toret = new HashSet<>(webResources.size());
 

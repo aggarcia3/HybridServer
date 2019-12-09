@@ -59,14 +59,6 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
     public boolean remove(final UUID uuid) throws IOException;
 
 	/**
-	 * Removes all of the web resources from this DAO. No call no {@link get} after
-	 * returning from this method will return a value different than {@code null}.
-	 *
-	 * @throws IOException If some I/O error occurred during the operation.
-	 */
-    public void clear() throws IOException;
-
-	/**
 	 * Returns a {@link Set} of the UUIDs used by web resources in this DAO. The set
 	 * is a read-only collection of UUIDs present in the DAO, retrieved using
 	 * weakly-consistent semantics.
