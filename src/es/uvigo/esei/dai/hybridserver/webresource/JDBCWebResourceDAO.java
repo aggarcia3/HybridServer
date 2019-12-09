@@ -50,10 +50,6 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 	private final String sqlAttributeParameters;
 	private final T dummyWebResource;
 
-	private final Map<Integer, Connection> dbConnections = new ConcurrentHashMap<>();
-	private final ThreadLocal<Integer> currentThreadId;
-	private final AtomicInteger nextThreadId;
-
 	/**
 	 * Creates a JDBC backed web resource DAO, which will store and read web
 	 * resources from a relational database.
@@ -102,12 +98,6 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 		this.sqlAttributeParameters = sqlAttributeParametersBuilder.toString();
 		this.dummyWebResource = dummyWebResource;
 		this.tableName = dummyWebResource.getTypeName();
-
-		// Initialize identifiers for threads
-		this.nextThreadId = new AtomicInteger();
-		this.currentThreadId = ThreadLocal.withInitial(() -> {
-			return nextThreadId.getAndIncrement();
-		});
 	}
 
 	@Override

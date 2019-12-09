@@ -44,6 +44,8 @@ final class HTTPDELETERequestXSDWebResourceHandler extends HTTPDELETERequestWebR
 		final WebResourceDAO<XSLTWebResource> dao = request.getServer().getWebResourceDAO(XSLTWebResource.class);
 		boolean success = true;
 
+		// FIXME: this algorithm is O(n). A more specific DAO method could reduce its
+		// complexity to O(1)
 		try {
 			final Collection<XSLTWebResource> xsltWebResources = dao.webResources();
 
