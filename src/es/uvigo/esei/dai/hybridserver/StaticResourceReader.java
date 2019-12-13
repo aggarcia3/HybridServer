@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public final class StaticResourceReader {
 	private static final int TRANSFER_BUFFER_SIZE = 4 * 1024; // 4 KiB
 
-	private static final Map<String, String> LOADED_RESOURCES = new ConcurrentHashMap<>(7); // 7 is the number of resources
+	private static final Map<String, String> LOADED_RESOURCES = new ConcurrentHashMap<>(6); // 6 is the number of resources
 	private final Logger logger;
 
 	/**

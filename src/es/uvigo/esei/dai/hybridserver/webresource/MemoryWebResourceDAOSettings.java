@@ -27,6 +27,11 @@ public final class MemoryWebResourceDAOSettings extends WebResourceDAOSettings<M
 		return MemoryWebResourceDAOFactory.get();
 	}
 
+	/**
+	 * Enumerates all the possible settings for this DAO.
+	 *
+	 * @author Alejandro González García
+	 */
 	static enum MemoryWebResourceDAOSettingsList {
 		// No configurable options for this DAO
 	}
