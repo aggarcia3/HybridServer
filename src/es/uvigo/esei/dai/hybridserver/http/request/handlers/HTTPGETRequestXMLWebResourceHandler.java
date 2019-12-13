@@ -104,7 +104,7 @@ final class HTTPGETRequestXMLWebResourceHandler extends HTTPGETRequestWebResourc
 
 							if (html != null) {
 								actualResponse = new HTTPResponse()
-									.setStatus(HTTPResponseStatus.S200)
+									.setStatus(HTTPResponseStatus.S400)
 									.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
 									.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 									.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
