@@ -17,6 +17,9 @@ import java.util.Map;
  *            {@code WebResourceDAOSettings} subclass.
  */
 public abstract class WebResourceDAOSettings<T extends WebResourceDAOSettings<?, ?, ?>, K extends Enum<K>, V> {
+	// This map is unnecessary with the current implementations of this abstract class.
+	// However, in the past, it was used by the JDBC one. I leave it here because it doesn't hurt,
+	// and I might use it again before release
 	private final Map<K, V> settingsMap;
 
 	/**

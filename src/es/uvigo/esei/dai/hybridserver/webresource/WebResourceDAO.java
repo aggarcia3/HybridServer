@@ -1,5 +1,6 @@
 package es.uvigo.esei.dai.hybridserver.webresource;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
@@ -12,7 +13,7 @@ import java.util.UUID;
  *
  * @param <T> The type of the web resources the DAO gives access to.
  */
-public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable {
+public interface WebResourceDAO<T extends WebResource<T>> extends Closeable {
 	/**
 	 * Returns the web resource associated to the specified UUID, or {@code null} if
 	 * this web resource DAO contains no web resource with that UUID. There can be
@@ -26,8 +27,7 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 	 * @return The web resource to which the specified UUID is mapped, or
 	 *         {@code null} if this web resource DAO contains no mapping for the
 	 *         UUID.
-	 * @throws IOException              If some I/O error occurred during the
-	 *                                  operation.
+	 * @throws IOException If some I/O error occurred during the operation.
 	 */
 	public T get(final UUID uuid) throws IOException;
 
@@ -44,7 +44,7 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 	 * @throws IOException              If some I/O error occurred during the
 	 *                                  operation.
 	 */
-    public void put(final T webResource) throws IOException;
+	public void put(final T webResource) throws IOException;
 
 	/**
 	 * Removes the web resource for a UUID from this web resource DAO if it is
@@ -56,7 +56,7 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 	 *         DAO, false otherwise.
 	 * @throws IOException If some I/O error occurred during the operation
 	 */
-    public boolean remove(final UUID uuid) throws IOException;
+	public boolean remove(final UUID uuid) throws IOException;
 
 	/**
 	 * Returns a {@link Set} of the UUIDs used by web resources in this DAO. The set
@@ -66,7 +66,7 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 	 * @return A set containing the UUIDs used by web resources in this DAO.
 	 * @throws IOException If some I/O error occurred during the operation.
 	 */
-    public Set<UUID> uuidSet() throws IOException;
+	public Set<UUID> uuidSet() throws IOException;
 
 	/**
 	 * Returns a {@link Collection} view of the web resources contained by this data
@@ -76,5 +76,5 @@ public interface WebResourceDAO<T extends WebResource<T>> extends AutoCloseable 
 	 * @return A collection of the web resources contained in this DAO.
 	 * @throws IOException If some I/O error occurred during the operation.
 	 */
-    public Collection<T> webResources() throws IOException;
+	public Collection<T> webResources() throws IOException;
 }

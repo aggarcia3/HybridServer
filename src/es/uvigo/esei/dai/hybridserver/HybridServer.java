@@ -2,6 +2,7 @@ package es.uvigo.esei.dai.hybridserver;
 
 import java.io.IOException;
 import java.lang.Thread.State;
+import java.sql.DriverManager;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -11,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import es.uvigo.esei.dai.hybridserver.pools.JDBCConnectionPool;
 import es.uvigo.esei.dai.hybridserver.webresource.HTMLWebResource;
 import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOFactory;
 import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOSettings;
@@ -282,7 +284,7 @@ public final class HybridServer {
 					for (final WebResourceDAO<?> webResourceDao : webResourcesMap.values()) {
 						webResourceDao.close();
 					}
-				} catch (final Exception exc) {
+				} catch (final IOException exc) {
 					logger.log(Level.WARNING, "Couldn't relinquish the resources associated to a web resource DAO", exc);
 				}
 			}
@@ -331,8 +333,16 @@ public final class HybridServer {
 	 */
 	private void initializeJDBCBackedDAO() {
 		final JDBCWebResourceDAOFactory daoFactory = JDBCWebResourceDAOFactory.get();
+
+		final JDBCConnectionPool dbConnectionPool = new JDBCConnectionPool(
+			configuration.getNumClients(),
+			() -> DriverManager.getConnection(
+				configuration.getDbURL(), configuration.getDbUser(), configuration.getDbPassword()
+			), logger
+		);
+
 		final JDBCWebResourceDAOSettings settings = new JDBCWebResourceDAOSettings(
-			configuration.getDbURL(), configuration.getDbUser(), configuration.getDbPassword(), logger
+			dbConnectionPool, logger
 		);
 
 		webResourcesMap.put(HTMLWebResource.class, daoFactory.createDAO(settings, HTMLWebResource.class));

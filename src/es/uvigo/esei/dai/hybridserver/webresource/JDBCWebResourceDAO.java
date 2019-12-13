@@ -2,7 +2,6 @@ package es.uvigo.esei.dai.hybridserver.webresource;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -15,13 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOSettings.JDBCWebResourceDAOSettingsList;
+import es.uvigo.esei.dai.hybridserver.pools.JDBCConnectionPool;
 
 import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.INVALID_RESOURCE;
 import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.WEB_RESOURCE_ALREADY_MAPPED;
@@ -44,6 +41,7 @@ import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants
 final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceDAO<T> {
 	private final JDBCWebResourceDAOSettings settings;
 
+	private final JDBCConnectionPool dbConnectionPool;
 	private final Set<String> attributeSet;
 	private final String tableName;
 	private final String tableAttributes;
@@ -54,8 +52,7 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 	 * Creates a JDBC backed web resource DAO, which will store and read web
 	 * resources from a relational database.
 	 *
-	 * @param settings         The settings for this DAO, used to configure the
-	 *                         connection to the DB.
+	 * @param settings         The settings for this DAO, used to access the DB.
 	 * @param dummyWebResource The dummy web resource that will be used when access
 	 *                         to web resource type-specific operations is needed,
 	 *                         but no suitable web resource object is available.
@@ -69,8 +66,7 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 		}
 
 		this.settings = settings;
-
-		DriverManager.setLoginTimeout(settings.getDbLoginTimeout());
+		this.dbConnectionPool = settings.getJdbcConnectionPool();
 
 		this.attributeSet = dummyWebResource.getAttributeNames();
 
@@ -103,11 +99,12 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 	@Override
 	public T get(final UUID uuid) throws IOException {
 		T webResource = null;
+		Connection dbConnection = null;
 
 		if (uuid != null) {
 			try {
 				// Try to get a connection to the DB if needed
-				final Connection dbConnection = connectToDbIfDeadOrGet();
+				dbConnection = dbConnectionPool.take();
 
 				try (final PreparedStatement statement = dbConnection.prepareStatement(
 					"SELECT " + tableAttributes + " FROM " + tableName + " WHERE LOWER(uuid) = LOWER(?) LIMIT 1;")
@@ -124,6 +121,8 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 				}
 			} catch (final SQLException exc) {
 				throw handleSQLException(exc);
+			} finally {
+				dbConnectionPool.yield(dbConnection);
 			}
 		}
 
@@ -132,14 +131,15 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 
 	@Override
 	public void put(final T webResource) throws IOException {
+		Connection dbConnection = null;
+
 		// Check arguments for sanity
 		if (webResource == null) {
 			throw new IllegalArgumentException(INVALID_RESOURCE);
 		}
 
 		try {
-			// Try to get a connection to the DB if needed
-			final Connection dbConnection = connectToDbIfDeadOrGet();
+			dbConnection = dbConnectionPool.take();
 
 			// FIXME: the SQL-92 standard doesn't allow for ignoring already existing rows,
 			// and fixes for that require either DBMS-specific extensions or executing more
@@ -165,16 +165,18 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 			}
 		} catch (final SQLException exc) {
 			throw handleSQLException(exc);
+		} finally {
+			dbConnectionPool.yield(dbConnection);
 		}
 	}
 
 	@Override
 	public boolean remove(final UUID uuid) throws IOException {
 		boolean resourceRemoved = false;
+		Connection dbConnection = null;
 
 		try {
-			// Try to get a connection to the DB if needed
-			final Connection dbConnection = connectToDbIfDeadOrGet();
+			dbConnection = dbConnectionPool.take();
 
 			try (final PreparedStatement statement = dbConnection.prepareStatement(
 				"DELETE FROM " + tableName + " WHERE uuid = ?;")
@@ -185,6 +187,8 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 			}
 		} catch (final SQLException exc) {
 			throw handleSQLException(exc);
+		} finally {
+			dbConnectionPool.yield(dbConnection);
 		}
 
 		return resourceRemoved;
@@ -193,10 +197,10 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 	@Override
 	public Set<UUID> uuidSet() throws IOException {
 		final Set<UUID> uuidSet = new HashSet<>();
+		Connection dbConnection = null;
 
 		try {
-			// Try to get a connection to the DB if needed
-			final Connection dbConnection = connectToDbIfDeadOrGet();
+			dbConnection = dbConnectionPool.take();
 
 			try (final Statement statement = dbConnection.createStatement()) {
 				try (final ResultSet result = statement.executeQuery(
@@ -218,6 +222,8 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 			}
 		} catch (final SQLException exc) {
 			throw handleSQLException(exc);
+		} finally {
+			dbConnectionPool.yield(dbConnection);
 		}
 
 		return uuidSet;
@@ -225,11 +231,11 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 
 	@Override
 	public Collection<T> webResources() throws IOException {
-		final List<T> resourcesList = new ArrayList<>(); // ArrayList has much better locality of reference, and will be faster for small datasets 
+		final List<T> resourcesList = new ArrayList<>(); // ArrayList has much better locality of reference
+		Connection dbConnection = null;
 
 		try {
-			// Try to get a connection to the DB if needed
-			final Connection dbConnection = connectToDbIfDeadOrGet();
+			dbConnection = dbConnectionPool.take();
 
 			try (final Statement statement = dbConnection.createStatement()) {
 				try (final ResultSet result = statement.executeQuery(
@@ -242,101 +248,19 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 			}
 		} catch (final SQLException exc) {
 			throw handleSQLException(exc);
+		} finally {
+			dbConnectionPool.yield(dbConnection);
 		}
 
 		return resourcesList;
 	}
 
 	/**
-	 * @implNote The map might be inconsistently closed after this method returns if
-	 *           other threads are using it in the meantime. To avoid this, an
-	 *           external synchronization mechanism is needed.
+	 * @implNote This method closes the JDBC connection pool used by this DAO.
 	 */
 	@Override
 	public void close() throws IOException {
-		SQLException firstException = null;
-
-		for (final Connection dbConnection : dbConnections.values()) {
-			try {
-				if (!dbConnection.isClosed() && !dbConnection.getAutoCommit()) { // We use auto commit now, but that could change again...
-					dbConnection.rollback();
-				}
-			} catch (final SQLException exc) {
-				if (firstException != null) {
-					firstException.setNextException(exc);
-				} else {
-					firstException = exc;
-				}
-			} finally {
-				// Close the connection no matter if we succeeded doing the rollback
-				try {
-					dbConnection.close();
-				} catch (final SQLException exc) {
-					if (firstException != null) {
-						firstException.setNextException(exc);
-					} else {
-						firstException = exc;
-					}
-				}
-			}
-		}
-
-		// Delay throwing exceptions until a best effort to close all the connections
-		// has been made
-		if (firstException != null) {
-			throw new IOException(firstException);
-		}
-	}
-
-	/**
-	 * Does a best effort to get a connection to the database for the current
-	 * thread, in case the connection with the DB was lost or it was not established
-	 * yet.
-	 *
-	 * @return The new connection made with the DB if necessary, or a previously
-	 *         established one if it is still valid.
-	 * @throws SQLException If it was not possible to get a connection with the
-	 *                      database after trying.
-	 */
-	private Connection connectToDbIfDeadOrGet() throws SQLException {
-		Connection currentThreadDbConnection = dbConnections.get(currentThreadId.get());
-
-		if (currentThreadDbConnection == null || !currentThreadDbConnection.isValid(settings.getDbLoginTimeout())) {
-			final Logger logger = settings.getLogger();
-
-			if (logger != null) {
-				logger.log(Level.FINE,
-					"The thread with ID {0} is using a JDBC backed web resource DAO without a established DBMS connection. Trying to establish a connection...",
-					currentThreadId.get()
-				);
-			}
-
-			// Actively try to close invalid (but once established) connections,
-			// to maybe allow the JDBC driver to clean up its internal state
-			if (currentThreadDbConnection != null) {
-				try {
-					currentThreadDbConnection.close();
-				} catch (final SQLException ignore) {}
-			}
-
-			final String dbUrl = settings.getValue(JDBCWebResourceDAOSettingsList.DB_URL);
-			currentThreadDbConnection = DriverManager.getConnection(
-				dbUrl,
-				settings.getValue(JDBCWebResourceDAOSettingsList.DB_USER),
-				settings.getValue(JDBCWebResourceDAOSettingsList.DB_PASSWORD)
-			);
-
-			// Register our new connection in the connection map, so it can be closed
-			// when the server stops (i.e. the close method is invoked) and we can retrieve
-			// it later
-			dbConnections.put(currentThreadId.get(), currentThreadDbConnection);
-
-			if (logger != null) {
-				logger.log(Level.FINE, "Connection to {0} established successfully", dbUrl);
-			}
-		}
-
-		return currentThreadDbConnection;
+		dbConnectionPool.close();
 	}
 
 	/**
