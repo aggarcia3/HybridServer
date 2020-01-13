@@ -35,7 +35,7 @@
 
 	<complexType name="database" mixed="false">
 		<all>
-			<!-- User and password might be empty because some RDBMS don't require it -->
+			<!-- User and password might be empty because some DBMS don't require it -->
 			<element name="user" type="string"/>
 			<element name="password" type="string"/>
 			<element name="url" type="tns:jdbcUrl"/>
