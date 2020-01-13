@@ -29,7 +29,7 @@ public final class Launcher {
 					configuration = CONFIGURATION_LOADER.load(new File(args[0]));
 				} catch (final Exception exc) {
 					printErrorMessageAndExit(
-						"An error has occured while reading the configuration file: " + exc.getMessage()
+						"An error has occured while reading the configuration file: " + exc
 					);
 				}
 			}

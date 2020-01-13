@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 /**
  * A factory for a web resource DAO backed by a relational JDBC database.
@@ -23,7 +23,6 @@ public final class JDBCWebResourceDAOFactory implements WebResourceDAOFactory<JD
 	}
 
 	@Override
-	@SuppressWarnings("unchecked") // The cast is safe by contract. The code trusts itself
 	public <T extends WebResource<T>> WebResourceDAO<T> createDAO(
 		final JDBCWebResourceDAOSettings settings, final Class<T> webResourceType
 	) {
@@ -33,7 +32,7 @@ public final class JDBCWebResourceDAOFactory implements WebResourceDAOFactory<JD
 
 		T dummyWebResource;
 		try {
-			dummyWebResource = (T) webResourceType.getDeclaredField("DUMMY").get(null);
+			dummyWebResource = webResourceType.cast(webResourceType.getDeclaredField("DUMMY").get(null));
 		} catch (final ClassCastException | NoSuchFieldException | NullPointerException | IllegalArgumentException | IllegalAccessException exc) {
 			throw new AssertionError(
 				"Couldn't get a dummy web resource for a JDBC-backed web resource DAO. Does the web resource satisfy the expected contract?",

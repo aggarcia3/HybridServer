@@ -1,4 +1,7 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
+
+import static es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOConstants.INVALID_RESOURCE;
+import static es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOConstants.WEB_RESOURCE_ALREADY_MAPPED;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -19,9 +22,6 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import es.uvigo.esei.dai.hybridserver.pools.JDBCConnectionPool;
-
-import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.INVALID_RESOURCE;
-import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.WEB_RESOURCE_ALREADY_MAPPED;
 
 /**
  * Models a JDBC web resource DAO, which maintains rows of web resources
@@ -75,7 +75,7 @@ final class JDBCWebResourceDAO<T extends WebResource<T>> implements WebResourceD
 		final Pattern forbiddenCharsPattern = Pattern.compile("[^0-9a-zA-Z_-]");
 		for (final String attribute : attributeSet) {
 			attributeStringBuilder.append(
-				forbiddenCharsPattern.matcher(attribute).replaceAll("") // Just in case we fail to follow our own contract, to make internal SQL injection harder
+				forbiddenCharsPattern.matcher(attribute).replaceAll("") // Just in case we fail to follow our own contract
 			).append(", ");
 			sqlAttributeParametersBuilder.append("?").append(", ");
 		}

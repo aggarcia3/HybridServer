@@ -572,7 +572,7 @@ public final class HTTPRequest {
 	 */
 	private boolean isValidResourceChain(final String uri) {
 		// Start by checking that the URI is not an asterisk with an unsupported method
-		boolean toret = !uri.equals("*")
+		boolean isValid = !uri.equals("*")
 			|| method == HTTPRequestMethod.OPTIONS
 			|| method == HTTPRequestMethod.TRACE
 		;
@@ -581,11 +581,11 @@ public final class HTTPRequest {
 		// a relative path. Absolute URIs and authorities handling
 		// are out of scope for this project. This is a deviation
 		// from the standards
-		if (toret) {
-			toret = RELATIVE_URI_REGEX.matcher(uri).matches();
+		if (isValid) {
+			isValid = RELATIVE_URI_REGEX.matcher(uri).matches();
 		}
 
-		return toret;
+		return isValid;
 	}
 
 	/**

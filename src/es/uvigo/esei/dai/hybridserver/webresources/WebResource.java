@@ -1,10 +1,12 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.xml.bind.annotation.XmlElement;
 
 /**
  * Models a web resource, which has associated, immutable, type-specific
@@ -16,6 +18,11 @@ import java.util.UUID;
  * implementation, preferably with empty, interned attributes, following the
  * null object pattern where possible. Failure to obey that contract will result
  * in runtime exceptions.
+ * <p>
+ * They are also <b>required</b> to provide a public constructor with no
+ * arguments, in order to allow unmarshalling them. This constructor <b>must not</b>
+ * be used for purposes other than JAX-WS interoperability, or else unexpected state
+ * might be introduced in the application.
  *
  * @param <T> The type of the subclass.
  *
@@ -30,6 +37,14 @@ public abstract class WebResource<T extends WebResource<T>> {
 
 	private final String typeName;
 	private final String mimeType;
+	// We use this JAXB annotation so this attribute gets marshalled and unmarshalled,
+	// without the need to define getters and setters that break encapsulation.
+	// Quoting the JAX-WS specification, section 3.6.2:
+	// "JAXB 2.1 defines a mapping from Java classes to XML Schema constructs. JAX-WS uses this mapping
+	// to generate XML Schema named type and global element declarations that are referred to from within
+	// the WSDL message constructs generated for each operation."
+	// - https://download.oracle.com/otn-pub/jcp/jaxws-2.2-mrel3-evalu-oth-JSpec/jaxws-2_2-mrel3-spec.pdf
+	@XmlElement
 	private final Map<String, String> attributes;
 
 	/**
@@ -41,7 +56,8 @@ public abstract class WebResource<T extends WebResource<T>> {
 	 * @param mimeType   The MIME type for the web resource.
 	 * @param attributes A map with the attributes of this web resource, which at
 	 *                   least are {@link WebResource#UUID_ATTRIBUTE} and
-	 *                   {@link WebResource#CONTENT_ATTRIBUTE}.
+	 *                   {@link WebResource#CONTENT_ATTRIBUTE}. It must be
+	 *                   modifiable, thread-safe, and support the clear operation.
 	 * @throws IllegalArgumentException If any parameter is {@code null} or invalid.
 	 */
 	protected WebResource(final String typeName, final String mimeType, final Map<String, String> attributes) {
@@ -67,7 +83,7 @@ public abstract class WebResource<T extends WebResource<T>> {
 
 		this.typeName = typeName;
 		this.mimeType = mimeType;
-		this.attributes = Collections.unmodifiableMap(attributes);
+		this.attributes = attributes;
 	}
 
 	/**
@@ -104,7 +120,7 @@ public abstract class WebResource<T extends WebResource<T>> {
 	 *         executions of this method.
 	 */
 	public final Set<String> getAttributeNames() {
-		return attributes.keySet();
+		return Collections.unmodifiableMap(attributes).keySet();
 	}
 
 	/**
@@ -141,7 +157,7 @@ public abstract class WebResource<T extends WebResource<T>> {
 	protected static Map<String, String> commonAttributesToMap(
 		final UUID uuid, final String content, final int numberOfAttributes
 	) {
-		final Map<String, String> map = new HashMap<>((int) Math.ceil(numberOfAttributes / 0.75));
+		final Map<String, String> map = new ConcurrentHashMap<>(numberOfAttributes);
 
 		map.put(UUID_ATTRIBUTE, uuid == null ? null : uuid.toString());
 		map.put(CONTENT_ATTRIBUTE, content);

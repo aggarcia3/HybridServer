@@ -26,7 +26,7 @@ import javax.xml.bind.annotation.XmlRootElement;
  */
 @XmlRootElement(name = "server")
 public final class ServerConfiguration {
-	private static final String INCOMPLETE_UNMARSHALLING_ERROR = "A server configuration setting was not successfully unmarshalled";
+	private static final String INCOMPLETE_UNMARSHALLING_ERROR = "A server configuration setting was not unmarshalled successfully";
 
 	@XmlAttribute
 	private String name = null;

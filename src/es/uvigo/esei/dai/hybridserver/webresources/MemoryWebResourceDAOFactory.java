@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 /**
  * A factory for a web resource DAO backed by SDRAM.

@@ -3,26 +3,34 @@ package es.uvigo.esei.dai.hybridserver;
 import java.io.IOException;
 import java.lang.Thread.State;
 import java.sql.DriverManager;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import es.uvigo.esei.dai.hybridserver.pools.JDBCConnectionPool;
-import es.uvigo.esei.dai.hybridserver.webresource.HTMLWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOFactory;
-import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOSettings;
-import es.uvigo.esei.dai.hybridserver.webresource.MemoryWebResourceDAOFactory;
-import es.uvigo.esei.dai.hybridserver.webresource.MemoryWebResourceDAOSettings;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAO;
-import es.uvigo.esei.dai.hybridserver.webresource.XMLWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSLTWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.HTMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.JDBCWebResourceDAOFactory;
+import es.uvigo.esei.dai.hybridserver.webresources.JDBCWebResourceDAOSettings;
+import es.uvigo.esei.dai.hybridserver.webresources.MemoryWebResourceDAOFactory;
+import es.uvigo.esei.dai.hybridserver.webresources.MemoryWebResourceDAOSettings;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAO;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOP2PDecoratorFactory;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOP2PDecoratorSettings;
+import es.uvigo.esei.dai.hybridserver.webresources.XMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSLTWebResource;
 
 /**
  * Models the Hybrid Server instance as a whole, acting as a high level
@@ -36,6 +44,9 @@ public final class HybridServer {
 	private static final String NAME = "Hybrid Server";
 
 	private final Logger logger = Logger.getLogger(NAME);
+	private final Map<String, String> sampleHtmlPages;
+	private final Consumer<Map<String, String>> daoInitializer;
+	private final ExecutorService executorService;
 
 	private final StaticResourceReader staticResourceReader = new StaticResourceReader(logger);
 	private final Map<Class<? extends WebResource<?>>, WebResourceDAO<? extends WebResource<?>>> webResourcesMap;
@@ -43,7 +54,7 @@ public final class HybridServer {
 	private final AtomicReference<HybridServerThread> serverThread = new AtomicReference<>();
 
 	{
-		this.webResourcesMap = new HashMap<>();
+		this.webResourcesMap = new ConcurrentHashMap<>(4); // 4 is the number of web resource types
 	}
 
 	/**
@@ -52,8 +63,9 @@ public final class HybridServer {
 	 */
 	public HybridServer() {
 		this.configuration = new Configuration();
-
-		initializeJDBCBackedDAO();
+		this.daoInitializer = JDBCBackedDAOInitializer();
+		this.sampleHtmlPages = Collections.emptyMap();
+		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -68,8 +80,9 @@ public final class HybridServer {
 	 */
 	public HybridServer(final Configuration configuration) {
 		this.configuration = configuration;
-
-		initializeJDBCBackedDAO();
+		this.daoInitializer = JDBCBackedDAOInitializer();
+		this.sampleHtmlPages = Collections.emptyMap();
+		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -98,7 +111,9 @@ public final class HybridServer {
 			);
 		}
 
-		initializeJDBCBackedDAO();
+		this.daoInitializer = JDBCBackedDAOInitializer();
+		this.sampleHtmlPages = Collections.emptyMap();
+		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -112,34 +127,12 @@ public final class HybridServer {
 	 *                  the map are UUIDs, and the values the content associated to
 	 *                  that UUID.
 	 */
-	@SuppressWarnings("unchecked") // No heap pollution occurs due to how the map is initialized
 	public HybridServer(final Map<String, String> htmlPages) {
 		this.configuration = new Configuration();
 
-		initializeMemoryBackedDAO();
-
-		try {
-			logger.log(Level.FINER, "Adding {0} HTML pages to the HTML web resources collection", htmlPages.size());
-
-			for (final Entry<String, String> htmlPage : htmlPages.entrySet()) {
-				try {
-					((WebResourceDAO<HTMLWebResource>) webResourcesMap.get(HTMLWebResource.class)).put(
-						new HTMLWebResource(
-							UUID.fromString(htmlPage.getKey()), htmlPage.getValue()
-						)
-					);
-				} catch (final IllegalArgumentException exc) {
-					logger.log(
-						Level.WARNING,
-						"\"{0}\" is not a valid UUID, so it was not added to the web resources of the server",
-						htmlPage.getKey()
-					);
-				}
-			}
-		} catch (final IOException exc) {
-			// This shouldn't happen
-			throw new AssertionError(exc);
-		}
+		this.daoInitializer = memoryBackedDAOInitializer();
+		this.sampleHtmlPages = Collections.unmodifiableMap(htmlPages);
+		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -225,6 +218,9 @@ public final class HybridServer {
 
 		// Only start the thread if it is new
 		if (serverThread.getState() == State.NEW) {
+			// Initialize the DAO
+			daoInitializer.accept(sampleHtmlPages);
+
 			serverThread.start();
 
 			// Wait until the server thread is ready to accept connections or stopped,
@@ -247,10 +243,14 @@ public final class HybridServer {
 	/**
 	 * Stops the server orderly, so it won't accept new connections. This method
 	 * waits until the main server thread stops or a maximum wait time has elapsed,
-	 * whatever occurs first.
+	 * whatever occurs first. Callers should not invoke the
+	 * {@link HybridServer#start} method until this one returns; failure to do so
+	 * may imply that a new server thread can't be initialized properly.
 	 */
 	public void stop() {
-		final HybridServerThread serverThread = this.serverThread.get();
+		final HybridServerThread serverThread = this.serverThread.getAndUpdate(
+			(final HybridServerThread t) -> null
+		);
 
 		if (serverThread != null) {
 			serverThread.interrupt();
@@ -278,16 +278,26 @@ public final class HybridServer {
 				}
 			}
 
-			// Release resources held by data access objects
-			if (!stopFailed) {
+			// Remove the DAO from the map, in case the server is restarted
+			final Iterator<WebResourceDAO<? extends WebResource<?>>> iter = webResourcesMap.values().iterator();
+			while (iter.hasNext()) {
+				final WebResourceDAO<?> webResourceDao = iter.next();
+				iter.remove();
+
 				try {
-					for (final WebResourceDAO<?> webResourceDao : webResourcesMap.values()) {
+					// Release their resources if they are no longer used.
+					// The following condition will evaluate to true under normal conditions.
+					// If it doesn't evaluate to true, things are so messed up that leaking
+					// resources is probably the least of the concerns
+					if (!stopFailed) {
 						webResourceDao.close();
 					}
 				} catch (final IOException exc) {
 					logger.log(Level.WARNING, "Couldn't relinquish the resources associated to a web resource DAO", exc);
 				}
 			}
+
+			logger.log(Level.INFO, "Server stopped");
 		}
 	}
 
@@ -314,40 +324,140 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Initializes memory-backed data access objects for the web resources this
-	 * server works with.
+	 * Returns the executor service responsible for running the worker threads of
+	 * this Hybrid Server. Users of this method are responsible for not performing
+	 * any activity on the returned object that might render the server unusable
+	 * (i.e. unable to submit tasks to this executor while started).
+	 *
+	 * @return The described executor service.
 	 */
-	private void initializeMemoryBackedDAO() {
-		final MemoryWebResourceDAOFactory daoFactory = MemoryWebResourceDAOFactory.get();
-		final MemoryWebResourceDAOSettings settings = new MemoryWebResourceDAOSettings();
-
-		webResourcesMap.put(HTMLWebResource.class, daoFactory.createDAO(settings, HTMLWebResource.class));
-		webResourcesMap.put(XMLWebResource.class, daoFactory.createDAO(settings, XMLWebResource.class));
-		webResourcesMap.put(XSDWebResource.class, daoFactory.createDAO(settings, XSDWebResource.class));
-		webResourcesMap.put(XSLTWebResource.class, daoFactory.createDAO(settings, XSLTWebResource.class));
+	public ExecutorService getExecutorService() {
+		return executorService;
 	}
 
 	/**
-	 * Initializes JDBC-backed data access objects for the web resources this
-	 * server works with.
+	 * Returns a consumer that initializes memory-backed data access objects for the
+	 * web resources this server works with.
+	 *
+	 * @return The described consumer.
 	 */
-	private void initializeJDBCBackedDAO() {
-		final JDBCWebResourceDAOFactory daoFactory = JDBCWebResourceDAOFactory.get();
+	private Consumer<Map<String, String>> memoryBackedDAOInitializer() {
+		return (final Map<String, String> htmlPages) -> {
+			final MemoryWebResourceDAOFactory daoFactory = MemoryWebResourceDAOFactory.get();
+			final MemoryWebResourceDAOSettings settings = new MemoryWebResourceDAOSettings();
 
-		final JDBCConnectionPool dbConnectionPool = new JDBCConnectionPool(
-			configuration.getNumClients(),
-			() -> DriverManager.getConnection(
-				configuration.getDbURL(), configuration.getDbUser(), configuration.getDbPassword()
-			), logger
-		);
+			webResourcesMap.put(HTMLWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, HTMLWebResource.class), HTMLWebResource.class)
+			);
+			webResourcesMap.put(XMLWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XMLWebResource.class), XMLWebResource.class)
+			);
+			webResourcesMap.put(XSDWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XSDWebResource.class), XSDWebResource.class)
+			);
+			webResourcesMap.put(XSLTWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XSLTWebResource.class), XSLTWebResource.class)
+			);
 
-		final JDBCWebResourceDAOSettings settings = new JDBCWebResourceDAOSettings(
-			dbConnectionPool, logger
-		);
+			putSampleHtmlPages(htmlPages);
+		};
+	}
 
-		webResourcesMap.put(HTMLWebResource.class, daoFactory.createDAO(settings, HTMLWebResource.class));
-		webResourcesMap.put(XMLWebResource.class, daoFactory.createDAO(settings, XMLWebResource.class));
-		webResourcesMap.put(XSDWebResource.class, daoFactory.createDAO(settings, XSDWebResource.class));
-		webResourcesMap.put(XSLTWebResource.class, daoFactory.createDAO(settings, XSLTWebResource.class));
+	/**
+	 * Returns a consumer that initializes JDBC-backed data access objects for the
+	 * web resources this server works with.
+	 *
+	 * @return The described consumer.
+	 */
+	private Consumer<Map<String, String>> JDBCBackedDAOInitializer() {
+		return (final Map<String, String> htmlPages) -> {
+			final JDBCWebResourceDAOFactory daoFactory = JDBCWebResourceDAOFactory.get();
+
+			final JDBCConnectionPool dbConnectionPool = new JDBCConnectionPool(
+				configuration.getNumClients(),
+				() -> DriverManager.getConnection(
+					configuration.getDbURL(), configuration.getDbUser(), configuration.getDbPassword()
+				), logger
+			);
+
+			final JDBCWebResourceDAOSettings settings = new JDBCWebResourceDAOSettings(
+				dbConnectionPool, logger
+			);
+
+			webResourcesMap.put(HTMLWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, HTMLWebResource.class), HTMLWebResource.class)
+			);
+			webResourcesMap.put(XMLWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XMLWebResource.class), XMLWebResource.class)
+			);
+			webResourcesMap.put(XSDWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XSDWebResource.class), XSDWebResource.class)
+			);
+			webResourcesMap.put(XSLTWebResource.class, decorateDAOWithP2PNetworking(
+				daoFactory.createDAO(settings, XSLTWebResource.class), XSLTWebResource.class)
+			);
+
+			putSampleHtmlPages(htmlPages);
+		};
+	}
+
+	/**
+	 * Adds the specified sample HTML pages to the HTML web resource DAO, previously
+	 * initialized.
+	 *
+	 * @param htmlPages The map of HTML pages to add, where the key is the UUID and
+	 *                  the value its content.
+	 */
+	@SuppressWarnings("unchecked") // No heap pollution occurs due to how the map is initialized
+	private void putSampleHtmlPages(final Map<String, String> htmlPages) {
+		try {
+			logger.log(Level.FINER, "Adding {0} HTML pages to the HTML web resources collection", htmlPages.size());
+
+			for (final Entry<String, String> htmlPage : htmlPages.entrySet()) {
+				try {
+					((WebResourceDAO<HTMLWebResource>) webResourcesMap.get(HTMLWebResource.class)).put(
+						new HTMLWebResource(
+							UUID.fromString(htmlPage.getKey()), htmlPage.getValue()
+						)
+					);
+				} catch (final IllegalArgumentException exc) {
+					logger.log(
+						Level.WARNING,
+						"\"{0}\" is not a valid UUID, so it was not added to the web resources of the server",
+						htmlPage.getKey()
+					);
+				}
+			}
+		} catch (final IOException exc) {
+			// This shouldn't happen
+			throw new AssertionError(exc);
+		}
+	}
+
+	/**
+	 * Decorates a base DAO with P2P networking capabilities if needed, so that the
+	 * returned DAO will cooperate with remote Hybrid Servers (if any) for data
+	 * access operations.
+	 *
+	 * @param <T>             The type of the web resource that the base DAO
+	 *                        operates with.
+	 * @param baseDao         The DAO to augment its functionality.
+	 * @param webResourceType A class instances that represents the type of the web
+	 *                        resource that the base DAO operates with.
+	 * @return The augmented DAO, with P2P networking capabilities.
+	 */
+	private <T extends WebResource<T>> WebResourceDAO<T> decorateDAOWithP2PNetworking(
+		final WebResourceDAO<T> baseDao, final Class<T> webResourceType
+	) {
+		final List<ServerConfiguration> remoteServers = configuration.getServers();
+
+		// Do not decorate if there are no remote servers
+		return remoteServers.isEmpty() ?
+			baseDao :
+			WebResourceDAOP2PDecoratorFactory.get()
+			.createDAO(
+				new WebResourceDAOP2PDecoratorSettings(baseDao, remoteServers, executorService, logger), webResourceType
+			)
+		;
 	}
 }

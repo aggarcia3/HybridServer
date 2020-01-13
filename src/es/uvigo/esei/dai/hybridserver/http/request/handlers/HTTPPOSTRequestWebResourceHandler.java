@@ -11,7 +11,7 @@ import es.uvigo.esei.dai.hybridserver.http.HTTPRequestMethod;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponse;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
 import es.uvigo.esei.dai.hybridserver.http.MIME;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResource;
 
 /**
  * Implements an abstract HTTP POST request web resource handler, which

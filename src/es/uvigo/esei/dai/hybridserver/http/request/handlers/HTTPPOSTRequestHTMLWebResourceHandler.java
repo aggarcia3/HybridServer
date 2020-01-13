@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-import es.uvigo.esei.dai.hybridserver.webresource.HTMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.HTMLWebResource;
 
 /**
  * Handles (generates) the appropriate response for HTML web resource HTTP POST

@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 /**
  * Contains constants that improve the consistency between web resource DAO

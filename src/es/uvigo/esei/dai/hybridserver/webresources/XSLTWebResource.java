@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 import java.util.Map;
 import java.util.UUID;
@@ -23,9 +23,15 @@ public final class XSLTWebResource extends WebResource<XSLTWebResource> {
 
 	private static final String NULL_XSD_MESSAGE = "A XSLT web resource can't be associated to a invlid XSD UUID";
 
-	static final XSLTWebResource DUMMY = new XSLTWebResource(
-		UUID.nameUUIDFromBytes(new byte[0]), "", UUID.nameUUIDFromBytes(new byte[0])
-	);
+	static final XSLTWebResource DUMMY = new XSLTWebResource();
+
+	/**
+	 * Creates a placeholder XSLT web resource, satisfying the null object pattern.
+	 * This constructor is not meant to be used directly by users of this class.
+	 */
+	public XSLTWebResource() {
+		this(UUID.nameUUIDFromBytes(new byte[0]), "", UUID.nameUUIDFromBytes(new byte[0]));
+	}
 
 	/**
 	 * Creates a new XSLT web resource from its UUID, content and associated XSD.

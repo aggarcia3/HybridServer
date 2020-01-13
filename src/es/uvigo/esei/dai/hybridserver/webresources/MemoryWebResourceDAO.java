@@ -1,4 +1,7 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
+
+import static es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOConstants.INVALID_RESOURCE;
+import static es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAOConstants.WEB_RESOURCE_ALREADY_MAPPED;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -8,9 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.INVALID_RESOURCE;
-import static es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAOConstants.WEB_RESOURCE_ALREADY_MAPPED;
 
 /**
  * Models a memory backed web resource DAO, which maintains a {@link Map} of web

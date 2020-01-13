@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 import java.util.Map;
 import java.util.UUID;
@@ -9,12 +9,18 @@ import java.util.UUID;
  * @author Alejandro González García
  */
 public final class HTMLWebResource extends WebResource<HTMLWebResource> {
-	static final HTMLWebResource DUMMY = new HTMLWebResource(
-		UUID.nameUUIDFromBytes(new byte[0]), ""
-	);
-
 	private static final String TYPE_NAME = "html";
 	private static final String MIME_TYPE = "text/html";
+
+	static final HTMLWebResource DUMMY = new HTMLWebResource();
+
+	/**
+	 * Creates a placeholder HTML web resource, satisfying the null object pattern.
+	 * This constructor is not meant to be used directly by users of this class.
+	 */
+	public HTMLWebResource() {
+		this(UUID.nameUUIDFromBytes(new byte[0]), "");
+	}
 
 	/**
 	 * Creates a new HTML web resource from its UUID and content.

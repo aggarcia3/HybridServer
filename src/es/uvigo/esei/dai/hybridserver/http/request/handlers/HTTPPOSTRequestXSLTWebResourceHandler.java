@@ -5,8 +5,8 @@ import java.util.UUID;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
 import es.uvigo.esei.dai.hybridserver.http.HTTPResponseStatus;
-import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSLTWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSLTWebResource;
 
 /**
  * Handles (generates) the appropriate response for XSLT web resource HTTP POST

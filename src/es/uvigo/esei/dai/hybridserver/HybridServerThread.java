@@ -7,10 +7,14 @@ import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.xml.ws.Endpoint;
+import javax.xml.ws.WebServiceException;
+
+import es.uvigo.esei.dai.hybridserver.webservices.HybridServerWebServiceImplementation;
 
 /**
  * Implements the main server thread, responsible for binding the server TCP
@@ -22,7 +26,6 @@ import java.util.logging.Logger;
  */
 final class HybridServerThread extends Thread {
 	private final HybridServer server;
-	private final ExecutorService executorService;
 	private final Object stateLock = new Object();
 
 	private boolean ready = false;
@@ -41,7 +44,6 @@ final class HybridServerThread extends Thread {
 		}
 
 		this.server = server;
-		this.executorService = Executors.newFixedThreadPool(server.getConfiguration().getNumClients());
 
 		setPriority(MAX_PRIORITY);
 		setDaemon(true);
@@ -70,7 +72,7 @@ final class HybridServerThread extends Thread {
 	 * Checks whether this thread encountered an error when binding to a listening
 	 * port, usually caused by that port being in used by another application.
 	 *
-	 * @return True if an error occured while binding to a listening port, false
+	 * @return True if an error occurred while binding to a listening port, false
 	 *         otherwise.
 	 */
 	boolean isPortInUse() {
@@ -111,69 +113,131 @@ final class HybridServerThread extends Thread {
 	@Override
 	public void run() {
 		final Logger serverLogger = server.getLogger();
+		final ExecutorService executorService = server.getExecutorService();
+
+		Endpoint webServiceEndpoint = null;
 
 		serverLogger.log(Level.INFO, "Starting main server thread");
 
-		try (
-			final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(
-				new InetSocketAddress(server.getConfiguration().getHttpPort())
-			)
-		) {
-			serverLogger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
+		try {
+			final String serviceUrl = server.getConfiguration().getWebServiceURL();
 
-			// Tell other threads we're ready to accept connections
-			synchronized (stateLock) {
-				ready = true;
-				stateLock.notifyAll();
-			}
-
-			// Keep accepting incoming connections until other thread signals us to stop
-			while (!interrupted()) {
+			if (serviceUrl != null) {
 				try {
-					// Hand off the incoming connection to a worker thread
-					final SocketChannel socketChannel = serverSocket.accept();
-					executorService.submit(() -> {
-						final Socket socket = socketChannel.socket();
+					// The Javadoc about what exceptions this method throws is weak.
+					// Experimentation shows that it throws subclasses of WebServiceException
+					// too, to indicate network failures and other kind of JAX-WS related
+					// exceptions (possibly the writers of the Javadoc assumed that programmers
+					// would realize that, and it arguably makes sense)
+					webServiceEndpoint = Endpoint.publish(
+						serviceUrl,
+						new HybridServerWebServiceImplementation(server)
+					);
+					webServiceEndpoint.setExecutor(executorService);
 
-						try {
-							serverLogger.log(Level.FINE, "Received connection from {0}", socketChannel.getRemoteAddress());
+					serverLogger.log(Level.INFO, "Web service endpoint published on {0}", serviceUrl);
+				} catch (final SecurityException | IllegalArgumentException | IllegalStateException | WebServiceException exc) {
+					serverLogger.log(
+						Level.SEVERE,
+						"An exception has occurred while publishing the web service endpoint. The server won't start",
+						exc
+					);
 
-							// Handle the request
-							try (
-								final HTTPRequestHandlerController requestHandlerController = new HTTPRequestHandlerController(
-									server,
-									socket.getInputStream(),
-									socket.getOutputStream()
-								)
-							) {
-								requestHandlerController.handleIncoming();
-							}
-						} catch (final IOException exc) {
-							serverLogger.log(Level.WARNING, HTTPRequestHandlerController.IO_EXCEPTION_MSG, exc);
-						}
-					});
-				} catch (final IOException exc) {
-					// Report I/O exceptions, but do not report signals received by other
-					// threads to stop
-					if (!(exc instanceof ClosedByInterruptException)) {
-						serverLogger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
+					synchronized (stateLock) {
+						notAbleToBindToPort = true;
+						stateLock.notifyAll();
 					}
 				}
 			}
-		} catch (final IOException exc) {
-			serverLogger.log(Level.SEVERE, "Couldn't bind to port {0}", server.getConfiguration());
 
-			synchronized (stateLock) {
-				notAbleToBindToPort = true;
-				stateLock.notifyAll();
+			if (serviceUrl == null || webServiceEndpoint != null) {
+				try (
+					final ServerSocketChannel serverSocket = ServerSocketChannel.open().bind(
+						new InetSocketAddress(server.getConfiguration().getHttpPort())
+					)
+				) {
+					serverLogger.log(Level.INFO, "Listening on {0} for incoming connections", serverSocket.getLocalAddress());
+
+					// Tell other threads we're ready to accept connections
+					synchronized (stateLock) {
+						ready = true;
+						stateLock.notifyAll();
+					}
+
+					// Keep accepting incoming connections until other thread signals us to stop
+					while (!interrupted()) {
+						try {
+							// Hand off the incoming connection to a worker thread
+							final SocketChannel socketChannel = serverSocket.accept();
+							executorService.execute(() -> {
+								final Socket socket = socketChannel.socket();
+
+								try {
+									serverLogger.log(Level.FINE, "Received connection from {0}", socketChannel.getRemoteAddress());
+
+									// Handle the request
+									try (
+										final HTTPRequestHandlerController requestHandlerController = new HTTPRequestHandlerController(
+											server,
+											socket.getInputStream(),
+											socket.getOutputStream()
+										)
+									) {
+										requestHandlerController.handleIncoming();
+									}
+								} catch (final IOException exc) {
+									serverLogger.log(Level.WARNING, HTTPRequestHandlerController.IO_EXCEPTION_MSG, exc);
+								}
+							});
+						} catch (final IOException exc) {
+							// Report I/O exceptions, but do not report signals received by other
+							// threads to stop
+							if (!(exc instanceof ClosedByInterruptException)) {
+								serverLogger.log(Level.WARNING, "An I/O error occured while processing a response to a client", exc);
+							}
+						}
+					}
+				} catch (final IOException exc) {
+					serverLogger.log(Level.SEVERE, "Couldn't bind to port {0}", server.getConfiguration());
+
+					synchronized (stateLock) {
+						notAbleToBindToPort = true;
+						stateLock.notifyAll();
+					}
+				}
 			}
 		} finally {
-			// Interrupt service threads
-			executorService.shutdownNow();
+			serverLogger.log(Level.INFO, "Stopping main server thread");
+
+			// Stop the published web service endpoint
+			if (webServiceEndpoint != null) {
+				try {
+					webServiceEndpoint.stop();
+
+					serverLogger.log(
+						Level.INFO,
+						"Web service endpoint stopped. Incoming connections will be disregarded"
+					);
+				} catch (final WebServiceException exc) {
+					// Again, the Javadoc for the stop method is weak, but it
+					// makes sense that it throws this exception.
+					// Maybe this kind of not-so-edge-cases-but-ignored-by-convenience
+					// unchecked exceptions should be checked during development,
+					// so people doesn't forget about them in the docs :)
+					serverLogger.log(
+						Level.WARNING,
+						"An exception has occurred while trying to stop the web service endpoint",
+						exc
+					);
+				}
+			}
+
+			// Stop accepting new tasks for the threads
+			executorService.shutdown();
 
 			boolean serviceThreadsTerminated = false;
 			try {
-				// Wait for them to stop
+				// Wait for service threads to stop
 				serviceThreadsTerminated = executorService.awaitTermination(
 					server.getStopWaitSeconds(),
 					TimeUnit.SECONDS

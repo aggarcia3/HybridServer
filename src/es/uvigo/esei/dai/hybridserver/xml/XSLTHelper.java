@@ -11,9 +11,9 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
 import es.uvigo.esei.dai.hybridserver.http.MIME;
-import es.uvigo.esei.dai.hybridserver.webresource.XMLWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSLTWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSLTWebResource;
 
 /**
  * Provides methods for easily applying XSLT stylesheets to XML documents,

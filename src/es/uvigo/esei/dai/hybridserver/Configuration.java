@@ -152,17 +152,6 @@ public final class Configuration {
 		return serversConfiguration.getServers();
 	}
 
-	// Using nested static classes should be safe.
-	// The Java 8's Javadoc says that classes annotated with @XmlRootElement should
-	// be top level classes, but the JAXB 2.0 specification tells otherwise for
-	// @XmlType:
-	// "a class must be either be a top level class or a nested static class"
-	// - https://download.oracle.com/otn-pub/jcp/jaxb-2.0-fr-oth-JSpec/jaxb-2_0-fr-spec.pdf
-	// Also, the specification for @XmlRootElement says nothing about what type of
-	// classes it accepts.
-	// If something breaks, just move these classes to another Java file, with
-	// package-private visibility or greater
-
 	/**
 	 * Represents a Hybrid Server configuration fragment, which contains information
 	 * relative to the network services a server will provide.
@@ -349,7 +338,7 @@ public final class Configuration {
 
 				final URI parsedUri = new URI(dbURI);
 
-				if (!parsedUri.getScheme().matches("^jdbc$")) {
+				if (!parsedUri.getScheme().equals("jdbc")) {
 					throw new URISyntaxException("", "");
 				}
 			} catch (final URISyntaxException exc) {

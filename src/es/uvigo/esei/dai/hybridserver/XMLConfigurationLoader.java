@@ -27,7 +27,8 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.SchemaFactory;
 
 /**
- * Loads a Hybrid Server configuration from a XML document file.
+ * Loads a Hybrid Server configuration from a XML document file, using the JAXB
+ * specification.
  *
  * @author Alejandro González García
  * @implNote The implementation of this class is thread-safe.
@@ -35,7 +36,6 @@ import javax.xml.validation.SchemaFactory;
 public final class XMLConfigurationLoader implements ConfigurationLoader<Void> {
 	@Override
 	public Configuration load(final File file) throws Exception {
-
 		// Create a unmarshaller that validates the configuration schema
 		final Unmarshaller configurationUnmarshaller = JAXBContext.newInstance(Configuration.class).createUnmarshaller();
 

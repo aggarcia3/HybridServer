@@ -1,5 +1,5 @@
 // XML binding properties
-@javax.xml.bind.annotation.XmlSchema(
+@XmlSchema(
 	location = "", // To be specified when (un)marshalling
 	namespace = "http://www.esei.uvigo.es/dai/hybridserver",
 	elementFormDefault = javax.xml.bind.annotation.XmlNsForm.QUALIFIED,
@@ -7,3 +7,5 @@
 )
 
 package es.uvigo.esei.dai.hybridserver;
+
+import javax.xml.bind.annotation.XmlSchema;

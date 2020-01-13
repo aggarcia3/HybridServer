@@ -1,7 +1,7 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
-import es.uvigo.esei.dai.hybridserver.webresource.HTMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.HTMLWebResource;
 
 /**
  * Handles (generates) the appropriate response for HTML web resource HTTP GET

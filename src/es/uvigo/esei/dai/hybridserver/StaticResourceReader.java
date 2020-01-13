@@ -67,16 +67,16 @@ public final class StaticResourceReader {
 					sb.append(buf, 0, charsRead);
 				}
 
-				final String toret = sb.toString();
+				final String resourceContent = sb.toString();
 				logIfLoggerAvailable(Level.FINE,
 					"Done reading resource {0} ({1} ms, {2} characters)",
 					new Object[] {
 						name,
-						System.currentTimeMillis() - readStart, toret.length()
+						System.currentTimeMillis() - readStart, resourceContent.length()
 					}
 				);
 
-				return toret;
+				return resourceContent;
 			} catch (final Exception exc) {
 				logIfLoggerAvailable(Level.SEVERE, "Couldn't get the resource {0}. Returning null string", resource);
 				return null;

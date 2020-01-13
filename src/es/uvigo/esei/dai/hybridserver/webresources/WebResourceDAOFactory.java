@@ -1,4 +1,4 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
 /**
  * Describes the contract that every object capable of instantiating a
@@ -11,7 +11,7 @@ package es.uvigo.esei.dai.hybridserver.webresource;
  *            DAOs and need different settings.
  */
 @FunctionalInterface
-public interface WebResourceDAOFactory<T extends WebResourceDAOSettings<?, ?, ?>> {
+public interface WebResourceDAOFactory<T extends WebResourceDAOSettings<?>> {
 	/**
 	 * Returns a ready to use web resource DAO configured according to the provided
 	 * DAO-specific settings.

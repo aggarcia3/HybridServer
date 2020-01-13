@@ -5,9 +5,9 @@ import java.util.Collection;
 import java.util.UUID;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
-import es.uvigo.esei.dai.hybridserver.webresource.WebResourceDAO;
-import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
-import es.uvigo.esei.dai.hybridserver.webresource.XSLTWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.WebResourceDAO;
+import es.uvigo.esei.dai.hybridserver.webresources.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSLTWebResource;
 
 /**
  * Handles (generates) the appropriate response for XSD web resource HTTP DELETE

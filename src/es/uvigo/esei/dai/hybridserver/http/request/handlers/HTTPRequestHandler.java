@@ -142,7 +142,7 @@ public abstract class HTTPRequestHandler {
 			throw new IllegalArgumentException("Can't create a status code response for a null status code");
 		}
 
-		final HTTPResponse toret = new HTTPResponse()
+		final HTTPResponse response = new HTTPResponse()
 			.setStatus(status)
 			.setVersion(HTTPHeaders.HTTP_1_1.getHeader());
 
@@ -151,7 +151,7 @@ public abstract class HTTPRequestHandler {
 		);
 
 		if (statusHtml != null) {
-			toret.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
+			response.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), MIME.TEXT_HTML.getMime())
 				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en")
 				.setContent(statusHtml
 					.replace("-- STATUS CODE --", Integer.toString(status.getCode()))
@@ -159,6 +159,6 @@ public abstract class HTTPRequestHandler {
 				);
 		}
 
-		return toret;
+		return response;
 	}
 }

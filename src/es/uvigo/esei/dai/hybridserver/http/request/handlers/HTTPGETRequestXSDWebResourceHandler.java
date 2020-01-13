@@ -1,7 +1,7 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
-import es.uvigo.esei.dai.hybridserver.webresource.XSDWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XSDWebResource;
 
 /**
  * Handles (generates) the appropriate response for XSD web resource HTTP GET

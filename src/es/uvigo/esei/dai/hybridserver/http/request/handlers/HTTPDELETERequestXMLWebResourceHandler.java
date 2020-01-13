@@ -1,7 +1,7 @@
 package es.uvigo.esei.dai.hybridserver.http.request.handlers;
 
 import es.uvigo.esei.dai.hybridserver.http.HTTPRequest;
-import es.uvigo.esei.dai.hybridserver.webresource.XMLWebResource;
+import es.uvigo.esei.dai.hybridserver.webresources.XMLWebResource;
 
 /**
  * Handles (generates) the appropriate response for XML web resource HTTP DELETE

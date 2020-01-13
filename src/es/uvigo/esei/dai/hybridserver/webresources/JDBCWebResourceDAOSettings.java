@@ -1,17 +1,15 @@
-package es.uvigo.esei.dai.hybridserver.webresource;
+package es.uvigo.esei.dai.hybridserver.webresources;
 
-import java.util.EnumMap;
 import java.util.logging.Logger;
 
 import es.uvigo.esei.dai.hybridserver.pools.JDBCConnectionPool;
-import es.uvigo.esei.dai.hybridserver.webresource.JDBCWebResourceDAOSettings.JDBCWebResourceDAOSettingsList;
 
 /**
  * Stores the settings needed to create a JDBC-backed web resource DAO.
  *
  * @author Alejandro González García
  */
-public final class JDBCWebResourceDAOSettings extends WebResourceDAOSettings<JDBCWebResourceDAOSettings, JDBCWebResourceDAOSettingsList, Void> {
+public final class JDBCWebResourceDAOSettings implements WebResourceDAOSettings<JDBCWebResourceDAOSettings> {
 	private final JDBCConnectionPool dbConnectionPool;
 	private final Logger logger;
 
@@ -27,8 +25,6 @@ public final class JDBCWebResourceDAOSettings extends WebResourceDAOSettings<JDB
 	 *                                  {@code logger}.
 	 */
 	public JDBCWebResourceDAOSettings(final JDBCConnectionPool dbConnectionPool, final Logger logger) {
-		super(new EnumMap<>(JDBCWebResourceDAOSettingsList.class));
-
 		if (dbConnectionPool == null) {
 			throw new IllegalArgumentException(
 				"Can't associate a null JDBC connection pool to JDBC web resource DAO settings"
@@ -61,14 +57,5 @@ public final class JDBCWebResourceDAOSettings extends WebResourceDAOSettings<JDB
 	 */
 	public JDBCConnectionPool getJdbcConnectionPool() {
 		return dbConnectionPool;
-	}
-
-	/**
-	 * Enumerates all the possible settings for this DAO.
-	 *
-	 * @author Alejandro González García
-	 */
-	static enum JDBCWebResourceDAOSettingsList {
-		// No configurable string options for this DAO
 	}
 }
