@@ -12,8 +12,8 @@
 
 	<!-- General document layout -->
 	<xsl:template match="/">
-		<!-- Renders as text with Firefox 71 builtin XSLT processor -->
-		<!-- <xsl:text disable-output-escaping="yes">&lt;!DOCTYPE html&gt;</xsl:text> -->
+		<!-- Renders as text with Firefox 71 builtin XSLT processor, but Internet Explorer complains about it missing -->
+		<xsl:text disable-output-escaping="yes">&lt;!DOCTYPE html&gt;</xsl:text>
 
 		<title><xsl:value-of select="$pageTitle"/></title>
 
@@ -99,7 +99,8 @@
 				<pre id="password"><noscript><xsl:value-of select="tns:password"/></noscript></pre>
 				<script>
 					var actualPassword = "<xsl:value-of select="tns:password"/>";
-					var maskedPassword = "*".repeat(actualPassword.length);
+					// Cross-browser way of repeating a string (https://stackoverflow.com/questions/202605/repeat-string-javascript)
+					var maskedPassword = new Array(actualPassword.length + 1).join("*");
 					var passwordElement = document.getElementById("password");
 
 					// Hide the password
