@@ -266,7 +266,7 @@ public final class HTTPResponse {
 		writer.write(version + " " + status.getCode() + " " + status.getStatus() + "\r\n");
 
 		// Write headers
-		boolean explicitContentLength = true;
+		boolean explicitContentLength = false;
 		boolean explicitConnectionHeader = false;
 		for (final Map.Entry<String, String> parameterPair : parameters.entrySet()) {
 			final String key = parameterPair.getKey();
