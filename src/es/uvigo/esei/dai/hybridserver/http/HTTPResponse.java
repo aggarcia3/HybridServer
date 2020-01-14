@@ -3,6 +3,7 @@ package es.uvigo.esei.dai.hybridserver.http;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -265,27 +266,16 @@ public final class HTTPResponse {
 		writer.write(version + " " + status.getCode() + " " + status.getStatus() + "\r\n");
 
 		// Write headers
-		int explicitContentLength = -1;
+		boolean explicitContentLength = true;
 		boolean explicitConnectionHeader = false;
 		for (final Map.Entry<String, String> parameterPair : parameters.entrySet()) {
 			final String key = parameterPair.getKey();
 			String value = parameterPair.getValue();
 
-			// Check if we're about to send the content length header.
-			// We want to make sure it's correct
+			// Check if we're about to send the content length header,
+			// we want to take note of that
 			if (key.equalsIgnoreCase(HTTPHeaders.CONTENT_LENGTH.getHeader())) {
-				try {
-					explicitContentLength = Integer.parseUnsignedInt(parameterPair.getValue());
-				} catch (final NumberFormatException exc) {
-					// Ignore, we want explicitContentLength to keep its initial value
-				}
-
-				if ((content == null && explicitContentLength != 0) ||
-					(content != null && explicitContentLength != content.length())
-				) {
-					// The content length header is not valid, so just replace it silently
-					value = Integer.toString(content == null ? 0 : content.length());
-				}
+				explicitContentLength = true;
 			}
 
 			// Quietly replace any Connection header value by "close", as that's the value
@@ -316,8 +306,8 @@ public final class HTTPResponse {
 
 		// If there is a non-empty message body, but we didn't receive
 		// any content length header, add it
-		if (content != null && !content.isEmpty() && explicitContentLength < 0) {
-			writer.write(HTTPHeaders.CONTENT_LENGTH.getHeader() + ": " + content.length() + "\r\n");
+		if (content != null && !content.isEmpty() && !explicitContentLength) {
+			writer.write(HTTPHeaders.CONTENT_LENGTH.getHeader() + ": " + content.getBytes(StandardCharsets.UTF_8).length + "\r\n");
 		}
 
 		// Write header ending
