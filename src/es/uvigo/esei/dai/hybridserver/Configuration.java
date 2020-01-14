@@ -17,16 +17,16 @@
  */
 package es.uvigo.esei.dai.hybridserver;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElements;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import static es.uvigo.esei.dai.hybridserver.ServerConfiguration.validateHttpUrl;
 
 /**
  * Represents the configuration parameters of a Hybrid Server.
@@ -237,17 +237,7 @@ public final class Configuration {
 		 *                                  it is not a HTTP URL. It can be {@code null}.
 		 */
 		final void setWebServiceURL(final String webServiceURL) {
-			try {
-				if (webServiceURL != null) {
-					final URL parsedUrl = new URL(webServiceURL);
-
-					if (!parsedUrl.getProtocol().matches("^http$")) {
-						throw new MalformedURLException();
-					}
-				}
-			} catch (final MalformedURLException exc) {
-				throw new IllegalArgumentException("The specified web service URL is not a HTTP URL");
-			}
+			validateHttpUrl(webServiceURL, "web service", true);
 
 			this.webServiceURL = webServiceURL;
 		}
@@ -363,7 +353,7 @@ public final class Configuration {
 
 		/**
 		 * Returns the list of remote Hybrid Servers this Hybrid Server knows, providing
-		 * their contact information.
+		 * their contact information. The returned list is not modifiable.
 		 *
 		 * @return The described list of server contact information.
 		 */

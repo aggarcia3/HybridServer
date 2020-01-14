@@ -10,6 +10,8 @@ import java.io.File;
  * @author Alejandro González García
  */
 interface ConfigurationLoader<T> {
+	public static final String CONFIGURATION_XSD_FILENAME = "configuration.xsd";
+
 	/**
 	 * Loads the configuration contained in a file.
 	 *
