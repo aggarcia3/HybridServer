@@ -46,12 +46,13 @@ public final class HybridServer {
 	private final Logger logger = Logger.getLogger(NAME);
 	private final Map<String, String> sampleHtmlPages;
 	private final Consumer<Map<String, String>> daoInitializer;
-	private final ExecutorService executorService;
 
 	private final StaticResourceReader staticResourceReader = new StaticResourceReader(logger);
 	private final Map<Class<? extends WebResource<?>>, WebResourceDAO<? extends WebResource<?>>> webResourcesMap;
 	private final Configuration configuration;
 	private final AtomicReference<HybridServerThread> serverThread = new AtomicReference<>();
+
+	private volatile ExecutorService executorService = null;
 
 	{
 		this.webResourcesMap = new ConcurrentHashMap<>(4); // 4 is the number of web resource types
@@ -65,7 +66,6 @@ public final class HybridServer {
 		this.configuration = new Configuration();
 		this.daoInitializer = JDBCBackedDAOInitializer();
 		this.sampleHtmlPages = Collections.emptyMap();
-		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -82,7 +82,6 @@ public final class HybridServer {
 		this.configuration = configuration;
 		this.daoInitializer = JDBCBackedDAOInitializer();
 		this.sampleHtmlPages = Collections.emptyMap();
-		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -113,7 +112,6 @@ public final class HybridServer {
 
 		this.daoInitializer = JDBCBackedDAOInitializer();
 		this.sampleHtmlPages = Collections.emptyMap();
-		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -132,7 +130,6 @@ public final class HybridServer {
 
 		this.daoInitializer = memoryBackedDAOInitializer();
 		this.sampleHtmlPages = Collections.unmodifiableMap(htmlPages);
-		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
@@ -218,6 +215,9 @@ public final class HybridServer {
 
 		// Only start the thread if it is new
 		if (serverThread.getState() == State.NEW) {
+			// Initialize the executor service
+			initializeExecutorService();
+
 			// Initialize the DAO
 			daoInitializer.accept(sampleHtmlPages);
 
@@ -314,6 +314,20 @@ public final class HybridServer {
 	}
 
 	/**
+	 * Returns the executor service responsible for running the worker threads of
+	 * this Hybrid Server. Users of this method are responsible for not performing
+	 * any activity on the returned object that might render the server unusable
+	 * (i.e. unable to submit tasks to this executor while started). Conversely, the
+	 * returned executor service might be {@code null} or shutdown if the server is
+	 * not started, or while it is stopping.
+	 *
+	 * @return The described executor service.
+	 */
+	public ExecutorService getExecutorService() {
+		return executorService;
+	}
+
+	/**
 	 * Returns the maximum number of seconds that the server will wait for its
 	 * worker threads to stop, when ordered to.
 	 *
@@ -324,15 +338,11 @@ public final class HybridServer {
 	}
 
 	/**
-	 * Returns the executor service responsible for running the worker threads of
-	 * this Hybrid Server. Users of this method are responsible for not performing
-	 * any activity on the returned object that might render the server unusable
-	 * (i.e. unable to submit tasks to this executor while started).
-	 *
-	 * @return The described executor service.
+	 * Initializes the executor service to be used by this Hybrid Server. This
+	 * method assumes that the configuration for the server has been read.
 	 */
-	public ExecutorService getExecutorService() {
-		return executorService;
+	private void initializeExecutorService() {
+		this.executorService = Executors.newFixedThreadPool(configuration.getNumClients());
 	}
 
 	/**
