@@ -41,13 +41,13 @@ final class HTTPDELETERequestXSDWebResourceHandler extends HTTPDELETERequestWebR
 	@Override
 	protected boolean processDeletion(final UUID xsdResourceUuid) {
 		final String xsdStringUuid = xsdResourceUuid.toString();
-		final WebResourceDAO<XSLTWebResource> dao = request.getServer().getWebResourceDAO(XSLTWebResource.class);
+		final WebResourceDAO<XSLTWebResource> xsltDao = request.getServer().getWebResourceDAO(XSLTWebResource.class);
 		boolean success = true;
 
 		// FIXME: this algorithm is O(n). A more specific DAO method can reduce its
 		// complexity to O(1)
 		try {
-			final Collection<XSLTWebResource> xsltWebResources = dao.webResources();
+			final Collection<XSLTWebResource> xsltWebResources = xsltDao.webResources();
 
 			for (final XSLTWebResource xslt : xsltWebResources) {
 				final String targetXsdUuid = xslt.getAttribute(XSLTWebResource.XSD_ATTRIBUTE);
@@ -57,7 +57,7 @@ final class HTTPDELETERequestXSDWebResourceHandler extends HTTPDELETERequestWebR
 					// Transactions don't scale with P2P, so there's not much point in grouping
 					// delete operations anyway
 					try {
-						dao.remove(UUID.fromString(targetXsdUuid));
+						xsltDao.remove(UUID.fromString(xslt.getAttribute(XSLTWebResource.UUID_ATTRIBUTE)));
 					} catch (final IOException exc) {
 						// Catch the exception here so the loop continues, and as much XSLTs are
 						// deleted as possible
