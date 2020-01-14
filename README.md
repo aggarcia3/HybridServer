@@ -19,3 +19,4 @@ handlers = java.util.logging.ConsoleHandler
 java.util.logging.ConsoleHandler.level = ALL
 java.util.logging.ConsoleHandler.encoding = UTF-8
 ```
+* La clase `JAXBConfigurationLoader` puede intercambiarse con `XMLConfigurationLoader`, pues son dos implementaciones funcionalmente equivalentes del lector de configuración XML. `JAXBConfigurationLoader` fue creada hace tiempo, cuando el autor creyó que, para los propósitos de esta entrega, podía usar JAXB para leer la configuración XML. Luego pregunté si ello se podía hacer, y la respuesta fue analizar el árbol manualmente con SAX o DOM en su lugar, lo que dio lugar a la clase `XMLConfigurationLoader` final de este proyecto. El propósito de mantener la primera implementación en esta entrega es mostrarla a modo de curiosidad, para que el corrector experimente con ella si quiere. Naturalmente, no me hago responsable de su buen o mal funcionamiento (aunque no debería de funcionar mal, porque ha pasado tests igualmente).
