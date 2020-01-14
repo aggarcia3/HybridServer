@@ -159,12 +159,6 @@ abstract class HTTPGETRequestWebResourceHandler<T extends WebResource<T>> extend
 
 		final HybridServer server = request.getServer();
 
-		final HTTPResponse response = new HTTPResponse()
-			.setStatus(HTTPResponseStatus.S200)
-			.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
-			.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
-			.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en");
-
 		final List<ServerConfiguration> remoteServers = server.getConfiguration().getServers();
 		final int numberOfRemoteServers = remoteServers.size();
 		final Set<UUID> localWebResources = server.getWebResourceDAO(getWebResourceType()).localUuidSet();
@@ -257,6 +251,12 @@ abstract class HTTPGETRequestWebResourceHandler<T extends WebResource<T>> extend
 		if (finalResourceListBuilder.length() < 1) {
 			finalResourceListBuilder.append(NO_RES_AVAILABLE);
 		}
+
+		final HTTPResponse response = new HTTPResponse()
+				.setStatus(HTTPResponseStatus.S200)
+				.setVersion(HTTPHeaders.HTTP_1_1.getHeader())
+				.putParameter(HTTPHeaders.CONTENT_TYPE.getHeader(), "text/html; charset=UTF-8")
+				.putParameter(HTTPHeaders.CONTENT_LANGUAGE.getHeader(), "en");
 
 		return response.setContent(listHtml
 			.replace("-- RESOURCE LIST PLACEHOLDER --", finalResourceListBuilder.toString())
