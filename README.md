@@ -1,6 +1,7 @@
 # HybridServer
 Proyecto de la asignatura DAI del grado en Ingeniería Informática por la ESEI, curso 2019-2020.
 # Autor
+Grupo 2.5:
 *  González García, Alejandro - 45149510G.
 # Comentarios
 *  El proyecto está diseñado para ser ejecutado exclusivamente en Java 8. Esto es debido a que usa JAXB y JAX-WS, tecnologías de Java EE marcadas como obsoletas y luego eliminadas en posteriores versiones de Java por razones de mantenibilidad. Aunque [es posible restaurar una versión actualizada de ella en versiones más recientes con librerías externas](https://stackoverflow.com/questions/48204141/replacements-for-deprecated-jpms-modules-with-java-ee-apis), ello no se ha hecho para no quebrantar la condición de que no se pueden usar librerías externas.
